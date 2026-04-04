@@ -345,7 +345,7 @@ function client.init()
 		end
 	end
 
-	shootHaptic = LoadHaptic("MOD/tool/haptic/gun_fire.xml")
+	shootHaptic = LoadHaptic("MOD/haptic/gun_fire.xml")
 	clientGunFx = {
 		angVel = 0.0,
 		coolDown = 0.0,
