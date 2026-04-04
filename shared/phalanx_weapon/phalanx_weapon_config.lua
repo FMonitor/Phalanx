@@ -9,6 +9,6 @@ phalanxWeaponConfig = phalanxWeaponConfig or {
 	projectileLightRadius = 2.0,
 	shootVolume = 1.0,
 	spinVolume = 1.0,
-	spread = 0.015,
-	fireCooldown = 0.025,
+	spread = 0.01,
+	fireCooldown = 0.05,
 }

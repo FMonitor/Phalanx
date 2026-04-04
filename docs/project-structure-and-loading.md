@@ -336,6 +336,49 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 - 这是按当前 API 能力做的工程性规避，推测目标是绕开引擎默认的第一人称载具淡出行为
 - 如果后续测试表明效果稳定，可以保留这套做法作为车载第一人称相机的固定模板
 
+### 2026-04-04: 车载 spin 音效不播放，但炮塔已正常转动
+
+现象：
+- 手持 `phalanx` 有转管 `spin` 声
+- 车载 `phalanx` 炮塔会预热、会转、会开火，但没有 `spin` 声
+- 弹丸、开火声和爆炸声都正常
+
+定位思路：
+- 先确认服务端和客户端“是否正在转”的状态链是否正常
+- 再确认 `playSpin(...)` 这段代码是否真的执行到
+- 当普通 `DebugWatch` 太多、条目显示不稳定时，不要继续堆更多日志
+- 改成“阶段式”单条日志，例如：
+  - `after_init`
+  - `after_camera_sync`
+  - `after_muzzle`
+  - `spin_enter_fire`
+  这样可以快速定位脚本到底停在哪一段
+
+最终定位：
+- 车载客户端本地状态 `clientGunFx` 缺少 `angle = 0.0`
+- 共享模块 [phalanx_weapon_spin.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/shared/phalanx_weapon/phalanx_weapon_spin.lua) 的 `tickSpin()` 会执行：
+
+```lua
+state.angle = state.angle + state.angVel * dt
+```
+
+- 因为 `clientGunFx.angle` 未初始化，这一段会中断后续本地逻辑
+- 结果表现为：
+  - 前面的相机/输入/开火链路正常
+  - 后面的 `spin` 音效分支始终进不去
+
+修复：
+- 在 [car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua) 的 `clientGunFx` 初始化中补上：
+
+```lua
+angle = 0.0
+```
+
+结论：
+- 当共享状态结构被多个脚本复用时，初始化字段必须完整对齐
+- 如果怀疑某段客户端逻辑“静默失效”，优先用阶段式日志逐段缩小范围
+- 比起一次性堆很多 `DebugWatch`，复用一条阶段标签通常更可靠
+
 修复：
 - 第一人称分支也改成先计算世界空间相机
 - 再转成车体本地 transform

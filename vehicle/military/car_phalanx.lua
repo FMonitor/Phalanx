@@ -20,6 +20,13 @@ cameraState = {
 	targetDistance = 10.0,
 	height = 0.6
 }
+autoFireState = {
+	enabled = false,
+	synced = false,
+}
+serverSpinState = {
+	activeUntil = 0.0,
+}
 
 cameraConfig = {
 	sensX = 5000.0,
@@ -149,6 +156,8 @@ function server.init()
 	body = FindBody("body")
 	vehicle = findMountedVehicle()
 	gun = FindBody("gun")
+	autoFireEnabled = false
+	autoFirePlayerId = 0
 
 	upright = true
 	ensureGunSpinState()
@@ -156,6 +165,11 @@ end
 
 function server.setCameraTransform(t)
 	cameraTransform = t
+end
+
+function server.setAutoFire(enabled, playerId)
+	autoFireEnabled = enabled == true
+	autoFirePlayerId = playerId or 0
 end
 
 function server.tick(dt)
@@ -170,10 +184,13 @@ function server.tick(dt)
 	end
 
 	if playerId == -1 then
-		local spin = ensureGunSpinState()
-		phalanxWeaponSpin.tickSpin(spin, dt, false)
-		animateGunSpin(dt)
-		return
+		if not autoFireEnabled then
+			local spin = ensureGunSpinState()
+			phalanxWeaponSpin.tickSpin(spin, dt, false)
+			animateGunSpin(dt)
+			return
+		end
+		playerId = autoFirePlayerId
 	end
 
 	if gun == 0 or IsBodyBroken(gun) then
@@ -189,7 +206,7 @@ function server.tick(dt)
 	local gt = GetBodyTransform(gun)
 
 	local gunDirection = TransformToParentVec(gt, Vec(0, 0, -1))
-	muzzle = TransformToParentVec(gt, Vec(0, 0.8, 0))
+	muzzle = TransformToParentVec(gt, Vec(0, 0.4, 0))
 	muzzle = VecAdd(muzzle, VecAdd(gt.pos, VecScale(gunDirection, 0.3)))
 
 	checkUpright()
@@ -206,7 +223,12 @@ function server.tick(dt)
 		SetBodyTransform(gun, nt)
 		shoot(dt, playerId, shootDir)
 	else
+		local spin = ensureGunSpinState()
 		phalanxWeaponSpin.tickSpin(spin, dt, false)
+	end
+
+	if playerId ~= nil and playerId > 0 then
+		ClientCall(playerId, "client.setSpinActive", spin.angVel > 0)
 	end
 
 	animateGunSpin(dt)
@@ -230,7 +252,11 @@ end
 
 function shoot(dt, playerId, shootDir)
 	local spin = ensureGunSpinState()
-	local firing = InputDown("vehicleraise", playerId) or InputDown("usetool", playerId)
+	local manualFire = false
+	if playerId ~= nil and playerId > 0 then
+		manualFire = InputDown("vehicleraise", playerId) or InputDown("usetool", playerId)
+	end
+	local firing = manualFire or autoFireEnabled
 
 	phalanxWeaponSpin.tickSpin(spin, dt, firing)
 
@@ -250,8 +276,14 @@ function client.init()
 	reticle = LoadSprite("gfx/reticle4.png")
 	cameraState.initialized = false
 	audioState = phalanxWeaponAudio.loadState()
+	local spinHandle = 0
+	if audioState ~= nil and audioState.spinSnd ~= nil then
+		spinHandle = audioState.spinSnd
+	end
+	DebugPrint("Car Phalanx spin handle = " .. spinHandle)
 	shootHaptic = LoadHaptic("MOD/haptic/gun_fire.xml")
 	clientGunFx = {
+		angle = 0.0,
 		angVel = 0.0,
 		coolDown = 0.0,
 		smoke = 0.0,
@@ -316,6 +348,12 @@ function client.playGunShot(px, py, pz)
 	PlayHaptic(shootHaptic, 1)
 end
 
+function client.setSpinActive(active)
+	if active then
+		serverSpinState.activeUntil = GetTime() + 0.15
+	end
+end
+
 function getShootDir()
 	local forward = TransformToParentVec(cameraTransform, Vec(0, 0, -1))
 	local yaw, pitch = dirToYawPitch(forward)
@@ -325,6 +363,15 @@ end
 
 function client.tick(dt)
 	if GetPlayerVehicle() == vehicle then
+		if InputPressed("q") then
+			autoFireState.enabled = not autoFireState.enabled
+			autoFireState.synced = false
+		end
+		if not autoFireState.synced then
+			ServerCall("server.setAutoFire", autoFireState.enabled)
+			autoFireState.synced = true
+		end
+
 		local cfg = cameraConfig
 		local pivot = GetVehicleLocationWorldTransform(vehicle, "camera")
 		if pivot == nil then
@@ -366,9 +413,9 @@ function client.tick(dt)
 		local target = VecAdd(pivot.pos, VecScale(forward, 100.0))
 		local useFirstPerson = cameraState.distance <= cfg.firstPersonThreshold
 
-		-- Keep the engine in third-person camera mode while we drive our own
-		-- camera, so the built-in first-person vehicle fade does not kick in.
-		RequestThirdPerson(false)
+		-- Match engine third-person state to our custom camera mode so player
+		-- body visibility stays stable when switching between first/third person.
+		RequestThirdPerson(not useFirstPerson)
 		if gun ~= 0 then
 			SetPivotClipBody(gun, 0)
 		end
@@ -425,12 +472,13 @@ function client.tick(dt)
 
 		ServerCall("server.setCameraTransform", cameraTransform)
 
-		local firing = InputDown("vehicleraise") or InputDown("usetool")
+		local canOperateGun = body ~= 0 and gun ~= 0 and not IsBodyBroken(body) and not IsBodyBroken(gun) and GetVehicleHealth(vehicle) > 0
+		local firingInput = InputDown("vehicleraise") or InputDown("usetool") or autoFireState.enabled
+		local firing = canOperateGun and firingInput
 		local gt = GetBodyTransform(gun)
 		local gunDirection = TransformToParentVec(gt, Vec(0, 0, -1))
-		muzzle = TransformToParentVec(gt, Vec(0, 0.8, 0))
-		muzzle = VecAdd(muzzle, VecAdd(gt.pos, VecScale(gunDirection, 0.3)))
-
+		muzzle = TransformToParentVec(gt, Vec(0, 0.0, 0))
+		muzzle = VecAdd(muzzle, VecAdd(gt.pos, VecScale(gunDirection, 0)))
 		if firing then
 			phalanxWeaponSpin.tickSpin(clientGunFx, dt, true)
 			local localDidFire = phalanxWeaponSpin.tryFire(clientGunFx)
@@ -438,9 +486,20 @@ function client.tick(dt)
 				PointLight(muzzle, 1, 0.7, 0.5, 3)
 				clientGunFx.smoke = math.min(1.0, clientGunFx.smoke + 0.1)
 			end
-			phalanxWeaponAudio.playSpin(audioState, cameraTransform.pos)
 		else
 			phalanxWeaponSpin.tickSpin(clientGunFx, dt, false)
+		end
+
+		local shouldPlaySpin = firing
+		local spinHandle = 0
+		if audioState ~= nil and audioState.spinSnd ~= nil then
+			spinHandle = audioState.spinSnd
+		end
+		DebugWatch("Car AutoFire", autoFireState.enabled)
+		DebugWatch("Car Spin", "f=" .. tostring(firing) .. " r=" .. tostring(audioState ~= nil) .. " h=" .. tostring(spinHandle) .. " p=" .. tostring(shouldPlaySpin))
+		if shouldPlaySpin then
+			local spinOk = phalanxWeaponAudio.playSpin(audioState, cameraTransform.pos)
+			DebugWatch("Car SpinPlayOk", spinOk)
 		end
 
 		if not firing and clientGunFx.smoke > 0 and clientGunFx.particleTimer < 0.0 then
