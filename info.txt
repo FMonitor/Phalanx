@@ -1,0 +1,28 @@
+en_name = Phalanx
+ru_name = Phalanx
+de_name = Phalanx
+es_name = Phalanx
+it_name = Phalanx
+fr_name = Phalanx
+jp_name = Phalanx
+pl_name = Phalanx
+sc_name = 手持密集阵
+
+author = LCMonitor
+
+en_description = Custom Phalanx autocannon with explosive ballistic rounds and glowing tracer trails.
+ru_description = 
+de_description = 
+es_description = 
+it_description = 
+fr_description = 
+jp_description = 
+pl_description = 
+sc_description = 自定义手持密集阵机炮，发射带爆炸和发光尾迹的弹道弹丸。
+
+tags = Tool,Vehicle
+
+preview = preview.jpg
+eardow
+
+version = 2

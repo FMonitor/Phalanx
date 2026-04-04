@@ -1,0 +1,8 @@
+<haptic_effect>
+<lifetime>0.1</lifetime>
+<adaptive_trigger type="vibration" index="1">
+<position>8</position>
+<amplitude>6</amplitude>
+<frequency>20</frequency>
+</adaptive_trigger>
+</haptic_effect>

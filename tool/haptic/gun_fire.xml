@@ -1,0 +1,12 @@
+<haptic_effect>
+<lifetime>0.1</lifetime>
+<keypoints type="trigger" index="1">
+	<point pos="0.5 0.5"/>
+</keypoints>
+<keypoints type="motor" index="0">
+	<point pos="0.5 0.5"/>
+</keypoints>
+<keypoints type="motor" index="1">
+	<point pos="0.5 0.5"/>
+</keypoints>
+</haptic_effect>
