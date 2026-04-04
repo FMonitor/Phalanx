@@ -17,8 +17,8 @@
 ## 2. 当前项目里已经在用的方式
 
 文件：
-- [car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua)
-- [mil-car-phalanx.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-car-phalanx.xml)
+- [phalanx_truck.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/phalanx_truck.lua)
+- [mil-phalanx-truck.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-phalanx-truck.xml)
 
 当前 `gun` 炮塔的旋转方式不是 `SetJointMotor(...)`，而是：
 
@@ -307,8 +307,8 @@ end
 
 ## 14. 本项目里相关文件
 
-- 炮塔脚本：[car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua)
-- 炮塔 XML：[mil-car-phalanx.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-car-phalanx.xml)
+- 炮塔脚本：[phalanx_truck.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/phalanx_truck.lua)
+- 炮塔 XML：[mil-phalanx-truck.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-phalanx-truck.xml)
 - API 参考：[script_defs.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/reference_mod/data/script_defs.lua)
 
 如果你下一步想做“双 joint 炮塔”，最合适的顺序是：

@@ -218,6 +218,6 @@ shared/phalanx_weapon/
 
 然后：
 - `tool/phalanx/phalanx.lua` 负责把玩家输入转成开火
-- `vehicle/military/car_phalanx.lua` 负责把车载输入转成开火
+- `vehicle/military/phalanx_truck.lua` 负责把车载输入转成开火
 
 两边共享同一套武器核心。

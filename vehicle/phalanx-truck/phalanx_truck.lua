@@ -98,10 +98,7 @@ end
 function findMountedVehicle()
 	local v = FindVehicle()
 	if v == 0 then
-		v = FindVehicle("phalanxcar")
-	end
-	if v == 0 then
-		v = FindVehicle("car")
+		v = FindVehicle("phalanx_truck")
 	end
 	return v
 end
@@ -300,7 +297,7 @@ function client.init()
 	if audioState ~= nil and audioState.spinSnd ~= nil then
 		spinHandle = audioState.spinSnd
 	end
-	DebugPrint("Car Phalanx spin handle = " .. spinHandle)
+	DebugPrint("Phalanx Truck spin handle = " .. spinHandle)
 	shootHaptic = LoadHaptic("MOD/haptic/gun_fire.xml")
 	clientGunFx = {
 		angle = 0.0,
@@ -503,7 +500,6 @@ function client.tick(dt)
 			phalanxWeaponSpin.tickSpin(clientGunFx, dt, true)
 			local localDidFire = phalanxWeaponSpin.tryFire(clientGunFx, vehiclePhalanxConfig)
 			if localDidFire then
-				PointLight(muzzle, 1, 0.7, 0.5, 3)
 				clientGunFx.smoke = math.min(1.0, clientGunFx.smoke + 0.1)
 			end
 		else
@@ -515,11 +511,11 @@ function client.tick(dt)
 		if audioState ~= nil and audioState.spinSnd ~= nil then
 			spinHandle = audioState.spinSnd
 		end
-		DebugWatch("Car AutoFire", autoFireState.enabled)
-		DebugWatch("Car Spin", "f=" .. tostring(firing) .. " r=" .. tostring(audioState ~= nil) .. " h=" .. tostring(spinHandle) .. " p=" .. tostring(shouldPlaySpin))
+		DebugWatch("Truck AutoFire", autoFireState.enabled)
+		DebugWatch("Truck Spin", "f=" .. tostring(firing) .. " r=" .. tostring(audioState ~= nil) .. " h=" .. tostring(spinHandle) .. " p=" .. tostring(shouldPlaySpin))
 		if shouldPlaySpin then
 			local spinOk = phalanxWeaponAudio.playSpin(audioState, vehiclePhalanxConfig, cameraTransform.pos)
-			DebugWatch("Car SpinPlayOk", spinOk)
+			DebugWatch("Truck SpinPlayOk", spinOk)
 		end
 
 		if not firing and clientGunFx.smoke > 0 and clientGunFx.particleTimer < 0.0 then
@@ -559,7 +555,7 @@ function drawTool()
 	UiText("PHALANX")
 	UiTranslate(0, -24)
 	UiScale(1.6)
-	UiText("CIWS")
+	UiText("TRUCK")
 	UiPop()
 	UiPop()
 end

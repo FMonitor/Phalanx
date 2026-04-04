@@ -13,7 +13,7 @@
 players = {}
 toolPhalanxConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_tool",
-	fireCooldown = 0.08,
+	fireCooldown = 0.075,
 	spread = 0.012,
 	ejectRightOffset = 0.1,
 	ejectUpOffset = -0.1,
@@ -164,7 +164,6 @@ function client.tickPlayer(p, dt)
 	if InputDown("usetool", p) and ammo > -2 and GetPlayerVehicle(p) == 0 then
 		phalanxWeaponSpin.tickSpin(data, dt, true)
 		if phalanxWeaponSpin.tryFire(data, toolPhalanxConfig) then
-			PointLight(mt.pos, 1, 0.7, 0.5, 3)
 			phalanxWeaponAudio.playShot(audioState, toolPhalanxConfig, pt.pos)
 			data.smoke = math.min(1.0, data.smoke + 0.1)
 		end

@@ -54,8 +54,8 @@ Keep vehicle-mounted specific logic here:
 
 Current files:
 
-- [car_phalanx.lua](/c:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua)
-- [mil-car-phalanx.xml](/c:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-car-phalanx.xml)
+- [phalanx_truck.lua](/c:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/phalanx_truck.lua)
+- [mil-phalanx-truck.xml](/c:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-phalanx-truck.xml)
 
 ## Dependency rule
 

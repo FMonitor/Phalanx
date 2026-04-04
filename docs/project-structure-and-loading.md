@@ -61,15 +61,15 @@
 
 ### 载具
 
-当前 `phalanx car` 载具的工作链路是：
+当前 `phalanx truck` 载具的工作链路是：
 
 1. [spawn.txt](C:/Users/13723/Documents/Teardown/mods/Phalanx/spawn.txt)  
    注册可生成载具 prefab
 
-2. [mil-car-phalanx.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-car-phalanx.xml)  
+2. [mil-phalanx-truck.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-phalanx-truck.xml)  
    在 prefab 内直接声明载具和脚本
 
-3. [car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua)  
+3. [phalanx_truck.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/phalanx_truck.lua)  
    作为该载具实例自己的控制脚本运行
 
 这条链不依赖根目录 `main.lua`。
@@ -128,8 +128,8 @@ haptic/
 ```text
 vehicle/
   military/
-    car_phalanx.lua
-    mil-car-phalanx.xml
+    phalanx_truck.lua
+    mil-phalanx-truck.xml
     mil-car.vox
 ```
 
@@ -269,8 +269,8 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 - 工具脚本：[phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/tool/phalanx/phalanx.lua)
 - 工具 xml：[phalanx.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/tool/phalanx/phalanx.xml)
 - 共享模块规范：[shared-module-convention.md](C:/Users/13723/Documents/Teardown/mods/Phalanx/docs/shared-module-convention.md)
-- 载具脚本：[car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua)
-- 载具 xml：[mil-car-phalanx.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-car-phalanx.xml)
+- 载具脚本：[phalanx_truck.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/phalanx_truck.lua)
+- 载具 xml：[mil-phalanx-truck.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-phalanx-truck.xml)
 
 ## 11. 调试记录
 
@@ -282,7 +282,7 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 
 原因：
 - [phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/tool/phalanx/phalanx.lua) 是经由 [main.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/main.lua) 被 include
-- [car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua) 是由载具 xml 直接加载
+- [phalanx_truck.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/phalanx_truck.lua) 是由载具 xml 直接加载
 - 两者的 `#include` 相对路径解析上下文不一样
 
 错误写法：
@@ -368,7 +368,7 @@ state.angle = state.angle + state.angVel * dt
   - 后面的 `spin` 音效分支始终进不去
 
 修复：
-- 在 [car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua) 的 `clientGunFx` 初始化中补上：
+- 在 [phalanx_truck.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/phalanx_truck.lua) 的 `clientGunFx` 初始化中补上：
 
 ```lua
 angle = 0.0

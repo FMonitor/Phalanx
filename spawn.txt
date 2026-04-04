@@ -1,1 +1,2 @@
-vehicle/military/mil-car-phalanx.xml : Vehicles/Phalanx Car
+vehicle/phalanx-truck/phalanx_truck.xml : Vehicles/Phalanx Truck
+vehicle/ciws/ciws_emplacement.xml : Vehicles/Phalanx CIWS
