@@ -93,12 +93,12 @@ function phalanxWeaponFx.spawnProjectileTrail(pos, vel)
 	ParticleAlpha(1, 0.0) -- Start/end opacity; controls how visible the trail is and how fast it fades.
 	ParticleDrag(0.2) -- Air resistance on particles; higher values make smoke slow down faster.
 	ParticleGravity(-0.1) -- Negative gravity makes smoke drift slightly upward.
-	SpawnParticle(pos, v, 3) -- Spawn one trail particle at pos, with velocity v, lifetime 1.2 seconds.
+	SpawnParticle(pos, v, 0.2) -- Spawn one trail particle at pos, with velocity v, lifetime 1.2 seconds.
 end
 
 function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, cfg)
 	local speed = VecLength(vel)
-	local glow = math.min(1.0, speed / cfg.projectileSpeed) -- Normalized brightness factor based on projectile speed.
+	local glow = 2 -- Normalized brightness factor based on projectile speed.
 
 	ParticleType("smoke")
 	ParticleColor(1.0, 0.9, 0.55) -- Brighter muzzle/tracer tint for the glowing ember particle.
@@ -111,7 +111,7 @@ function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, cfg)
 	if rndVec ~= nil then
 		rv = rndVec(0.05) -- Small random velocity variation to break up perfectly uniform particles.
 	end
-	SpawnParticle(pos, rv, 0.08) -- Very short-lived glow particle.
+	SpawnParticle(pos, rv, 0.1) -- Very short-lived glow particle.
 
 	PointLight(pos, 1.0, 0.78, 0.35, cfg.projectileLightRadius * glow) -- Dynamic light color and radius for tracer glow.
 end

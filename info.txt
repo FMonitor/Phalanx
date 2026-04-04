@@ -6,11 +6,11 @@ it_name = Phalanx
 fr_name = Phalanx
 jp_name = Phalanx
 pl_name = Phalanx
-sc_name = 手持密集阵
+sc_name = 防空密集阵
 
 author = LCMonitor
 
-en_description = Custom Phalanx autocannon with explosive ballistic rounds and glowing tracer trails.
+en_description = Brings devastating and realistic air defense firepower. Featuring a custom high-speed ballistic engine, glowing explosive tracer rounds, realistic bullet drop, and physical ejected shell casings. Includes both a devastating hand-held model and a mounted vehicle variant.
 ru_description = 
 de_description = 
 es_description = 
@@ -18,7 +18,8 @@ it_description =
 fr_description = 
 jp_description = 
 pl_description = 
-sc_description = 自定义手持密集阵机炮，发射带爆炸和发光尾迹的弹道弹丸。
+sc_description = 添加极具毁灭性且硬核的防空火力。本Mod搭载了全新的自定义弹道引擎，子弹拥有超高射速、真实下坠、发光尾焰以及爆炸伤害效果，甚至每一发子弹都会抛出遵循物理引擎的实体弹壳。包含一把手持式防空加特林武器，以及一辆搭载了密集阵系统的载具。
+
 
 tags = Tool,Vehicle
 
