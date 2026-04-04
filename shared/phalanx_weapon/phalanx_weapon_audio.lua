@@ -27,20 +27,20 @@ function phalanxWeaponAudio.loadState()
 	return state
 end
 
-function phalanxWeaponAudio.playShot(state, pos)
+function phalanxWeaponAudio.playShot(state, cfg, pos)
 	if state == nil or state.shootSnd == nil or #state.shootSnd == 0 then
 		return false
 	end
 
-	PlaySound(state.shootSnd[math.random(1, #state.shootSnd)], pos, phalanxWeaponConfig.shootVolume)
+	PlaySound(state.shootSnd[math.random(1, #state.shootSnd)], pos, cfg.shootVolume)
 	return true
 end
 
-function phalanxWeaponAudio.playSpin(state, pos)
+function phalanxWeaponAudio.playSpin(state, cfg, pos)
 	if state == nil or state.spinSnd == nil or state.spinSnd == 0 then
 		return false
 	end
 
-	PlayLoop(state.spinSnd, pos, phalanxWeaponConfig.spinVolume)
+	PlayLoop(state.spinSnd, pos, cfg.spinVolume)
 	return true
 end

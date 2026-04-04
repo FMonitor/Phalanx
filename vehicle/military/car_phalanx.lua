@@ -7,7 +7,21 @@
 #include "../../shared/phalanx_weapon/phalanx_weapon_spin.lua"
 #include "../../shared/phalanx_weapon/phalanx_weapon_audio.lua"
 
+vehiclePhalanxConfig = phalanxWeaponMakeConfig({
+	name = "phalanx_vehicle",
+	fireCooldown = 0.05,
+	spread = 0.01,
+	ejectRightOffset = 0.4,
+	ejectUpOffset = 0,
+	ejectForwardOffset = -1.3, -- 原来是-0.1，现在改得更大负数让子弹生成位置更靠后
+	ejectRightSpeed = 5.5,
+	ejectUpSpeed = 3.0,
+	ejectAngularSpeed = 30.0,
+	ejectLifetime =2.5,
+})
+
 weaponState = phalanxWeaponProjectile.createState()
+vehicleFxState = phalanxWeaponFx.createState()
 muzzle = Vec(0, 0, 0)
 reach = 500
 cameraTransform = Transform(Vec(0, 0, 0), Quat(0, 0, 0, 1))
@@ -97,15 +111,15 @@ function spawnProjectileTrail(pos, vel)
 end
 
 function spawnProjectileGlow(pos, vel)
-	phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec)
+	phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, vehiclePhalanxConfig)
 end
 
 function createPhalanxProjectile(pos, dir, owner)
-	phalanxWeaponProjectile.add(weaponState, pos, dir, owner)
+	phalanxWeaponProjectile.add(weaponState, vehiclePhalanxConfig, pos, dir, owner)
 end
 
 function tickPhalanxProjectiles(dt)
-	phalanxWeaponProjectile.tick(weaponState, dt, "client.renderProjectileSmoke")
+	phalanxWeaponProjectile.tick(weaponState, vehiclePhalanxConfig, dt, "client.renderProjectileSmoke")
 end
 
 function ensureGunSpinState()
@@ -174,6 +188,7 @@ end
 
 function server.tick(dt)
 	tickPhalanxProjectiles(dt)
+	phalanxWeaponFx.tickEjectedBodies(vehicleFxState, dt)
 
 	local playerId = -1
 	for p in Players() do
@@ -260,11 +275,16 @@ function shoot(dt, playerId, shootDir)
 
 	phalanxWeaponSpin.tickSpin(spin, dt, firing)
 
-	if firing and phalanxWeaponSpin.tryFire(spin) then
-		local dir = VecAdd(shootDir, rndVec(phalanxWeaponConfig.spread))
+	if firing and phalanxWeaponSpin.tryFire(spin, vehiclePhalanxConfig) then
+		local dir = VecAdd(shootDir, rndVec(vehiclePhalanxConfig.spread))
 		dir = VecNormalize(dir)
 		local pos = VecAdd(muzzle, VecScale(dir, 0.8))
 		createPhalanxProjectile(pos, dir, playerId)
+		local gt = GetBodyTransform(gun)
+		local shellRight = TransformToParentVec(gt, Vec(1, 0, 0))
+		local shellUp = TransformToParentVec(gt, Vec(0, 1, 0))
+		local shellForward = TransformToParentVec(gt, Vec(0, 0, -1))
+		phalanxWeaponFx.spawnEjectedBullet(vehicleFxState, vehiclePhalanxConfig, muzzle, shellRight, shellUp, shellForward, rndVec)
 		ClientCall(playerId, "client.playGunShot", muzzle[1], muzzle[2], muzzle[3])
 	end
 end
@@ -344,7 +364,7 @@ function client.playGunShot(px, py, pz)
 	if cameraTransform ~= nil and cameraTransform.pos ~= nil then
 		soundPos = cameraTransform.pos
 	end
-	phalanxWeaponAudio.playShot(audioState, soundPos)
+	phalanxWeaponAudio.playShot(audioState, vehiclePhalanxConfig, soundPos)
 	PlayHaptic(shootHaptic, 1)
 end
 
@@ -481,7 +501,7 @@ function client.tick(dt)
 		muzzle = VecAdd(muzzle, VecAdd(gt.pos, VecScale(gunDirection, 0)))
 		if firing then
 			phalanxWeaponSpin.tickSpin(clientGunFx, dt, true)
-			local localDidFire = phalanxWeaponSpin.tryFire(clientGunFx)
+			local localDidFire = phalanxWeaponSpin.tryFire(clientGunFx, vehiclePhalanxConfig)
 			if localDidFire then
 				PointLight(muzzle, 1, 0.7, 0.5, 3)
 				clientGunFx.smoke = math.min(1.0, clientGunFx.smoke + 0.1)
@@ -498,7 +518,7 @@ function client.tick(dt)
 		DebugWatch("Car AutoFire", autoFireState.enabled)
 		DebugWatch("Car Spin", "f=" .. tostring(firing) .. " r=" .. tostring(audioState ~= nil) .. " h=" .. tostring(spinHandle) .. " p=" .. tostring(shouldPlaySpin))
 		if shouldPlaySpin then
-			local spinOk = phalanxWeaponAudio.playSpin(audioState, cameraTransform.pos)
+			local spinOk = phalanxWeaponAudio.playSpin(audioState, vehiclePhalanxConfig, cameraTransform.pos)
 			DebugWatch("Car SpinPlayOk", spinOk)
 		end
 

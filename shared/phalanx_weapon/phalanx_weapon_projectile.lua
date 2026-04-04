@@ -8,8 +8,7 @@ function phalanxWeaponProjectile.createState()
 	}
 end
 
-function phalanxWeaponProjectile.add(state, pos, dir, owner)
-	local cfg = phalanxWeaponConfig
+function phalanxWeaponProjectile.add(state, cfg, pos, dir, owner)
 	dir = VecNormalize(dir)
 	table.insert(state.projectiles, {
 		pos = VecCopy(pos),
@@ -19,9 +18,7 @@ function phalanxWeaponProjectile.add(state, pos, dir, owner)
 	})
 end
 
-function phalanxWeaponProjectile.tick(state, dt, clientRpcName)
-	local cfg = phalanxWeaponConfig
-
+function phalanxWeaponProjectile.tick(state, cfg, dt, clientRpcName)
 	for i = #state.projectiles, 1, -1 do
 		local p = state.projectiles[i]
 		local oldPos = p.pos

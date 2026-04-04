@@ -2,6 +2,87 @@
 
 phalanxWeaponFx = phalanxWeaponFx or {}
 
+function phalanxWeaponFx.createState()
+	return {
+		ejectedBodies = {}
+	}
+end
+
+function phalanxWeaponFx.tickEjectedBodies(state, dt)
+	if state == nil or state.ejectedBodies == nil then
+		return
+	end
+
+	for i = #state.ejectedBodies, 1, -1 do
+		local item = state.ejectedBodies[i]
+		item.life = item.life - dt
+		if item.life <= 0 then
+			if item.body ~= nil and item.body ~= 0 and IsHandleValid(item.body) then
+				Delete(item.body)
+			end
+			table.remove(state.ejectedBodies, i)
+		end
+	end
+end
+
+function phalanxWeaponFx.spawnEjectedBullet(state, cfg, origin, rightDir, upDir, forwardDir, rndVec)
+	if state == nil or cfg == nil or origin == nil then
+		return 0
+	end
+
+	rightDir = VecNormalize(rightDir or Vec(1, 0, 0))
+	upDir = VecNormalize(upDir or Vec(0, 1, 0))
+	forwardDir = VecNormalize(forwardDir or Vec(0, 0, 1))
+
+	local spawnPos = VecCopy(origin)
+	spawnPos = VecAdd(spawnPos, VecScale(rightDir, cfg.ejectRightOffset or 0.0))
+	spawnPos = VecAdd(spawnPos, VecScale(upDir, cfg.ejectUpOffset or 0.0))
+	spawnPos = VecAdd(spawnPos, VecScale(forwardDir, cfg.ejectForwardOffset or 0.0))
+
+	local spawnRot = QuatLookAt(spawnPos, VecAdd(spawnPos, forwardDir))
+	local entities = Spawn("MOD/shared/phalanx_weapon/bullet.xml", Transform(spawnPos, spawnRot))
+	if entities == nil or #entities == 0 then
+		return 0
+	end
+
+	local shellBody = 0
+	for i = 1, #entities do
+		local ent = entities[i]
+		if GetEntityType(ent) == "body" then
+			shellBody = ent
+		elseif GetEntityType(ent) == "shape" and HasTag(ent, "bullet_physics") then
+			SetTag(ent, "invisible")
+		end
+	end
+
+	if shellBody == 0 then
+		return 0
+	end
+	SetBodyDynamic(shellBody, true)
+
+	local ejectVel = Vec()
+	ejectVel = VecAdd(ejectVel, VecScale(rightDir, cfg.ejectRightSpeed or 4.0))
+	ejectVel = VecAdd(ejectVel, VecScale(upDir, cfg.ejectUpSpeed or 3.0))
+	ejectVel = VecAdd(ejectVel, VecScale(forwardDir, cfg.ejectForwardSpeed or 0.0))
+	if rndVec ~= nil then
+		ejectVel = VecAdd(ejectVel, rndVec(cfg.ejectRandomSpeed or 1.5))
+	end
+	SetBodyVelocity(shellBody, ejectVel)
+
+	local angVel = VecScale(rightDir, cfg.ejectAngularSpeed or 20.0)
+	if rndVec ~= nil then
+		angVel = VecAdd(angVel, rndVec((cfg.ejectAngularSpeed or 20.0) * 0.3))
+	end
+	SetBodyAngularVelocity(shellBody, angVel)
+
+	table.insert(state.ejectedBodies, {
+		body = shellBody,
+		life = cfg.ejectLifetime or 3,
+	})
+
+	return shellBody
+end
+
 function phalanxWeaponFx.spawnProjectileTrail(pos, vel)
 	local dir = VecNormalize(vel)
 	local v = VecScale(dir, -4) -- Trail particle initial velocity; negative means drag smoke behind the bullet.
@@ -15,8 +96,7 @@ function phalanxWeaponFx.spawnProjectileTrail(pos, vel)
 	SpawnParticle(pos, v, 3) -- Spawn one trail particle at pos, with velocity v, lifetime 1.2 seconds.
 end
 
-function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec)
-	local cfg = phalanxWeaponConfig
+function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, cfg)
 	local speed = VecLength(vel)
 	local glow = math.min(1.0, speed / cfg.projectileSpeed) -- Normalized brightness factor based on projectile speed.
 

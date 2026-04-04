@@ -24,9 +24,9 @@ function phalanxWeaponSpin.tickSpin(state, dt, firing)
 	state.angle = state.angle + state.angVel * dt
 end
 
-function phalanxWeaponSpin.tryFire(state)
+function phalanxWeaponSpin.tryFire(state, cfg)
 	if state.angVel == 1000 and state.coolDown < 0 then
-		state.coolDown = phalanxWeaponConfig.fireCooldown
+		state.coolDown = cfg.fireCooldown
 		return true
 	end
 	return false

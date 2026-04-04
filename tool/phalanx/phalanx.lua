@@ -11,7 +11,20 @@
 #include "shared/phalanx_weapon/phalanx_weapon_audio.lua"
 
 players = {}
+toolPhalanxConfig = phalanxWeaponMakeConfig({
+	name = "phalanx_tool",
+	fireCooldown = 0.08,
+	spread = 0.012,
+	ejectRightOffset = 0.1,
+	ejectUpOffset = -0.1,
+	ejectForwardOffset = -0.5, -- 改为负数让抛壳口靠后
+	ejectRightSpeed = 4.0,
+	ejectUpSpeed = 2.0,
+	ejectAngularSpeed = 25.0,
+	ejectLifetime = 2.5,
+})
 weaponState = phalanxWeaponProjectile.createState()
+toolFxState = phalanxWeaponFx.createState()
 
 function createPlayerData()
 	local data = phalanxWeaponSpin.createState()
@@ -24,7 +37,8 @@ end
 
 function server.init()
 	RegisterTool("phalanx", "Phalanx", "MOD/tool/phalanx/phalanx.xml", 6)
-	SetToolAmmoPickupAmount("phalanx", 100)
+	SetToolAmmo("phalanx", 300)
+	SetToolAmmoPickupAmount("phalanx", 50)
 end
 
 function rndVec(length)
@@ -41,19 +55,20 @@ function spawnProjectileTrail(pos, vel)
 end
 
 function spawnProjectileGlow(pos, vel)
-	phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec)
+	phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, toolPhalanxConfig)
 end
 
 function createPhalanxProjectile(pos, dir, owner)
-	phalanxWeaponProjectile.add(weaponState, pos, dir, owner)
+	phalanxWeaponProjectile.add(weaponState, toolPhalanxConfig, pos, dir, owner)
 end
 
 function tickPhalanxProjectiles(dt)
-	phalanxWeaponProjectile.tick(weaponState, dt, "client.renderProjectileSmoke")
+	phalanxWeaponProjectile.tick(weaponState, toolPhalanxConfig, dt, "client.renderProjectileSmoke")
 end
 
 function server.tick(dt)
 	tickPhalanxProjectiles(dt)
+	phalanxWeaponFx.tickEjectedBodies(toolFxState, dt)
 
 	for p in PlayersAdded() do
 		players[p] = createPlayerData()
@@ -86,12 +101,16 @@ function server.tickPlayer(p, dt)
 		end
 
 		phalanxWeaponSpin.tickSpin(data, dt, true)
-		if phalanxWeaponSpin.tryFire(data) then
+		if phalanxWeaponSpin.tryFire(data, toolPhalanxConfig) then
 			local _, _, _, dir = GetPlayerAimInfo(mt.pos, 100, p)
-			dir = VecAdd(dir, rndVec(phalanxWeaponConfig.spread))
+			dir = VecAdd(dir, rndVec(toolPhalanxConfig.spread))
 			local pos = TransformToParentPoint(mt, Vec(0.05, -0.2, 1))
 			pos = VecAdd(pos, VecScale(dir, 0.8))
 			createPhalanxProjectile(pos, dir, p)
+			local shellRight = TransformToParentVec(mt, Vec(1, 0, 0))
+			local shellUp = TransformToParentVec(mt, Vec(0, 1, 0))
+			local shellForward = TransformToParentVec(mt, Vec(0, 0, -1))
+			phalanxWeaponFx.spawnEjectedBullet(toolFxState, toolPhalanxConfig, mt.pos, shellRight, shellUp, shellForward, rndVec)
 		end
 	else
 		phalanxWeaponSpin.tickSpin(data, dt, false)
@@ -144,12 +163,12 @@ function client.tickPlayer(p, dt)
 
 	if InputDown("usetool", p) and ammo > -2 and GetPlayerVehicle(p) == 0 then
 		phalanxWeaponSpin.tickSpin(data, dt, true)
-		if phalanxWeaponSpin.tryFire(data) then
+		if phalanxWeaponSpin.tryFire(data, toolPhalanxConfig) then
 			PointLight(mt.pos, 1, 0.7, 0.5, 3)
-			phalanxWeaponAudio.playShot(audioState, pt.pos)
+			phalanxWeaponAudio.playShot(audioState, toolPhalanxConfig, pt.pos)
 			data.smoke = math.min(1.0, data.smoke + 0.1)
 		end
-		phalanxWeaponAudio.playSpin(audioState, pt.pos)
+		phalanxWeaponAudio.playSpin(audioState, toolPhalanxConfig, pt.pos)
 
 		if IsPlayerLocal(p) then
 			PlayHaptic(shootHaptic, 1)
