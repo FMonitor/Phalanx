@@ -1,20 +1,16 @@
 #version 2
 
 #include "script/include/player.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_config.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_projectile.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_fx.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_spin.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_audio.lua"
 
-projectiles = {}
+weaponState = phalanxWeaponProjectile.createState()
 muzzle = Vec(0, 0, 0)
 reach = 500
 cameraTransform = Transform(Vec(0, 0, 0), Quat(0, 0, 0, 1))
-
-PHALANX_PROJECTILE_SPEED = 100.0
-PHALANX_PROJECTILE_GRAVITY = 9.8
-PHALANX_PROJECTILE_LIFETIME = 10.0
-PHALANX_PROJECTILE_BLAST = 0.5
-PHALANX_PROJECTILE_LIGHT_RADIUS = 2
-
-PHALANX_SHOOT_VOLUME = 1.0
-PHALANX_SPIN_VOLUME = 1.0
 PHALANX_BARREL_SPIN_PIVOT = Vec(0.25, 0, 0.25)
 cameraState = {
 	initialized = false,
@@ -90,94 +86,25 @@ function findMountedVehicle()
 end
 
 function spawnProjectileTrail(pos, vel)
-	local dir = VecNormalize(vel)
-	local v = VecAdd(VecScale(dir, -4), rndVec(0.3))
-
-	ParticleType("smoke")
-	ParticleColor(1.0, 0.7, 0.25)
-	ParticleRadius(0.1, 0.11)
-	ParticleAlpha(1, 0.0)
-	ParticleDrag(0.2)
-	ParticleGravity(-0.1)
-	SpawnParticle(pos, v, 1.2)
+	phalanxWeaponFx.spawnProjectileTrail(pos, vel)
 end
 
 function spawnProjectileGlow(pos, vel)
-	local speed = VecLength(vel)
-	local glow = math.min(1.0, speed / PHALANX_PROJECTILE_SPEED)
-
-	ParticleType("smoke")
-	ParticleColor(1.0, 0.9, 0.55)
-	ParticleRadius(0.05, 0.02)
-	ParticleAlpha(0.95, 0.0)
-	ParticleDrag(0.05)
-	ParticleGravity(0.0)
-	SpawnParticle(pos, rndVec(0.05), 0.08)
-
-	PointLight(pos, 1.0, 0.78, 0.35, PHALANX_PROJECTILE_LIGHT_RADIUS * glow)
+	phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec)
 end
 
 function createPhalanxProjectile(pos, dir, owner)
-	dir = VecNormalize(dir)
-	table.insert(projectiles, {
-		pos = VecCopy(pos),
-		vel = VecScale(dir, PHALANX_PROJECTILE_SPEED),
-		life = PHALANX_PROJECTILE_LIFETIME,
-		owner = owner,
-	})
+	phalanxWeaponProjectile.add(weaponState, pos, dir, owner)
 end
 
 function tickPhalanxProjectiles(dt)
-	for i = #projectiles, 1, -1 do
-		local p = projectiles[i]
-		local oldPos = p.pos
-		local alive = true
-
-		p.vel = VecAdd(p.vel, Vec(0, -PHALANX_PROJECTILE_GRAVITY * dt, 0))
-		local newPos = VecAdd(oldPos, VecScale(p.vel, dt))
-		local travel = VecSub(newPos, oldPos)
-		local dist = VecLength(travel)
-
-		if dist > 0 then
-			local dir = VecScale(travel, 1 / dist)
-			local hit, hitDist = QueryRaycast(oldPos, dir, dist)
-
-			if hit then
-				local hitPos = VecAdd(oldPos, VecScale(dir, hitDist))
-				Explosion(hitPos, PHALANX_PROJECTILE_BLAST)
-				table.remove(projectiles, i)
-				alive = false
-			else
-				p.pos = newPos
-				ClientCall(
-					0,
-					"client.renderProjectileSmoke",
-					p.pos[1], p.pos[2], p.pos[3],
-					p.vel[1], p.vel[2], p.vel[3]
-				)
-			end
-		end
-
-		if alive then
-			p.life = p.life - dt
-			if p.life <= 0 then
-				table.remove(projectiles, i)
-			end
-		end
-	end
+	phalanxWeaponProjectile.tick(weaponState, dt, "client.renderProjectileSmoke")
 end
 
 function ensureGunSpinState()
-	gunSpin = gunSpin or {
-		angle = 0.0,
-		angVel = 0.0,
-		coolDown = 0.0,
-		smoke = 0.0,
-		particleTimer = 0.0,
-		oldPipePos = Vec(),
-		launcherShape = 0,
-		launcherLocalTransform = nil,
-	}
+	gunSpin = gunSpin or phalanxWeaponSpin.createState()
+	gunSpin.launcherShape = gunSpin.launcherShape or 0
+	gunSpin.launcherLocalTransform = gunSpin.launcherLocalTransform or nil
 
 	if gunSpin.launcherShape == 0 then
 		if gun ~= 0 then
@@ -204,8 +131,6 @@ end
 
 function animateGunSpin(dt)
 	local spin = ensureGunSpinState()
-	spin.coolDown = spin.coolDown - dt
-	spin.angle = spin.angle + spin.angVel * dt
 
 	if spin.launcherShape ~= 0 and spin.launcherLocalTransform ~= nil then
 		local base = Transform(VecCopy(spin.launcherLocalTransform.pos), QuatCopy(spin.launcherLocalTransform.rot))
@@ -246,7 +171,7 @@ function server.tick(dt)
 
 	if playerId == -1 then
 		local spin = ensureGunSpinState()
-		spin.angVel = math.max(0, spin.angVel - dt * 1000)
+		phalanxWeaponSpin.tickSpin(spin, dt, false)
 		animateGunSpin(dt)
 		return
 	end
@@ -281,7 +206,7 @@ function server.tick(dt)
 		SetBodyTransform(gun, nt)
 		shoot(dt, playerId, shootDir)
 	else
-		spin.angVel = math.max(0, spin.angVel - dt * 1000)
+		phalanxWeaponSpin.tickSpin(spin, dt, false)
 	end
 
 	animateGunSpin(dt)
@@ -307,17 +232,14 @@ function shoot(dt, playerId, shootDir)
 	local spin = ensureGunSpinState()
 	local firing = InputDown("vehicleraise", playerId) or InputDown("usetool", playerId)
 
-	if firing then
-		spin.angVel = math.min(1000, spin.angVel + dt * 2000)
-		if spin.angVel == 1000 and spin.coolDown < 0 then
-			local dir = VecAdd(shootDir, rndVec(0.015))
-			dir = VecNormalize(dir)
-			local pos = VecAdd(muzzle, VecScale(dir, 0.8))
-			createPhalanxProjectile(pos, dir, playerId)
-			spin.coolDown = 0.025
-		end
-	else
-		spin.angVel = math.max(0, spin.angVel - dt * 1000)
+	phalanxWeaponSpin.tickSpin(spin, dt, firing)
+
+	if firing and phalanxWeaponSpin.tryFire(spin) then
+		local dir = VecAdd(shootDir, rndVec(phalanxWeaponConfig.spread))
+		dir = VecNormalize(dir)
+		local pos = VecAdd(muzzle, VecScale(dir, 0.8))
+		createPhalanxProjectile(pos, dir, playerId)
+		ClientCall(playerId, "client.playGunShot", muzzle[1], muzzle[2], muzzle[3])
 	end
 end
 
@@ -327,24 +249,7 @@ function client.init()
 	body = FindBody("body")
 	reticle = LoadSprite("gfx/reticle4.png")
 	cameraState.initialized = false
-	spinSnd = LoadLoop("MOD/snd/spin.ogg")
-	shootSnd = {}
-	for i = 1, 8 do
-		local snd = LoadSound("MOD/snd/fire" .. i .. ".ogg")
-		if snd ~= 0 then
-			table.insert(shootSnd, snd)
-		end
-	end
-
-	if #shootSnd == 0 then
-		for i = 0, 7 do
-			local snd = LoadSound("tools/gun" .. i .. ".ogg")
-			if snd ~= 0 then
-				table.insert(shootSnd, snd)
-			end
-		end
-	end
-
+	audioState = phalanxWeaponAudio.loadState()
 	shootHaptic = LoadHaptic("MOD/haptic/gun_fire.xml")
 	clientGunFx = {
 		angVel = 0.0,
@@ -402,6 +307,15 @@ function client.runHaptic()
 	PlayHaptic(shootHaptic, 1)
 end
 
+function client.playGunShot(px, py, pz)
+	local soundPos = Vec(px, py, pz)
+	if cameraTransform ~= nil and cameraTransform.pos ~= nil then
+		soundPos = cameraTransform.pos
+	end
+	phalanxWeaponAudio.playShot(audioState, soundPos)
+	PlayHaptic(shootHaptic, 1)
+end
+
 function getShootDir()
 	local forward = TransformToParentVec(cameraTransform, Vec(0, 0, -1))
 	local yaw, pitch = dirToYawPitch(forward)
@@ -452,14 +366,28 @@ function client.tick(dt)
 		local target = VecAdd(pivot.pos, VecScale(forward, 100.0))
 		local useFirstPerson = cameraState.distance <= cfg.firstPersonThreshold
 
+		-- Keep the engine in third-person camera mode while we drive our own
+		-- camera, so the built-in first-person vehicle fade does not kick in.
+		RequestThirdPerson(false)
+		if gun ~= 0 then
+			SetPivotClipBody(gun, 0)
+		end
+
 		if useFirstPerson then
 			local fpPivot = GetVehicleLocationWorldTransform(vehicle, "player")
 			if fpPivot == nil then
 				fpPivot = pivot
 			end
-			local camPos = VecAdd(fpPivot.pos, VecScale(forward, 0.15))
+			local camPos = VecAdd(fpPivot.pos, VecScale(forward, 0.1))
 			cameraTransform = Transform(camPos, QuatLookAt(camPos, target))
-			SetCameraTransform(cameraTransform, cfg.fov)
+			if body ~= 0 then
+				local bodyTransform = GetBodyTransform(body)
+				local cameraLocalTransform = TransformToLocalTransform(bodyTransform, cameraTransform)
+				AttachCameraTo(body, false)
+				SetCameraOffsetTransform(cameraLocalTransform)
+			else
+				SetCameraTransform(cameraTransform, cfg.fov)
+			end
 		else
 			local idealPos = VecAdd(pivot.pos, VecScale(forward, -cameraState.distance))
 			idealPos = VecAdd(idealPos, VecScale(up, cameraState.height))
@@ -504,19 +432,15 @@ function client.tick(dt)
 		muzzle = VecAdd(muzzle, VecAdd(gt.pos, VecScale(gunDirection, 0.3)))
 
 		if firing then
-			clientGunFx.angVel = math.min(1000, clientGunFx.angVel + dt * 2000)
-			if clientGunFx.angVel == 1000 and clientGunFx.coolDown < 0 then
+			phalanxWeaponSpin.tickSpin(clientGunFx, dt, true)
+			local localDidFire = phalanxWeaponSpin.tryFire(clientGunFx)
+			if localDidFire then
 				PointLight(muzzle, 1, 0.7, 0.5, 3)
-				if #shootSnd > 0 then
-					PlaySound(shootSnd[math.random(1, #shootSnd)], gt.pos, PHALANX_SHOOT_VOLUME)
-				end
-				clientGunFx.coolDown = 0.025
 				clientGunFx.smoke = math.min(1.0, clientGunFx.smoke + 0.1)
-				PlayHaptic(shootHaptic, 1)
 			end
-			PlayLoop(spinSnd, gt.pos, PHALANX_SPIN_VOLUME)
+			phalanxWeaponAudio.playSpin(audioState, cameraTransform.pos)
 		else
-			clientGunFx.angVel = math.max(0, clientGunFx.angVel - dt * 1000)
+			phalanxWeaponSpin.tickSpin(clientGunFx, dt, false)
 		end
 
 		if not firing and clientGunFx.smoke > 0 and clientGunFx.particleTimer < 0.0 then
@@ -530,10 +454,8 @@ function client.tick(dt)
 			SpawnParticle(muzzle, VecAdd(vel, rndVec(0.1)), 2.0)
 		end
 
-		clientGunFx.coolDown = clientGunFx.coolDown - dt
-		clientGunFx.particleTimer = clientGunFx.particleTimer - dt
 		clientGunFx.oldPipePos = VecCopy(muzzle)
-		clientGunFx.smoke = math.max(0.0, clientGunFx.smoke - dt / 3)
+		phalanxWeaponSpin.tickSmoke(clientGunFx, dt)
 	else
 		cameraState.initialized = false
 	end

@@ -22,7 +22,26 @@
 - 在 `main.lua` 里 `#include` 工具脚本
 - 工具自己的逻辑和资源仍然可以放在 `tool/工具名/`
 
-## 2. 当前可工作的加载链
+## 2. 顶层目录职责
+
+当前项目建议把“游戏直接加载目录”和“项目共享逻辑目录”分开：
+
+- 游戏直接加载：
+  - `tool/`
+  - `vehicle/`
+  - `haptic/`
+  - `main.lua`
+  - `main.xml`
+  - `spawn.txt`
+
+- 项目共享逻辑：
+  - `shared/`
+
+其中：
+- `tool/` 和 `vehicle/` 是给游戏直接引用的内容目录
+- `shared/` 是项目内部复用逻辑目录
+
+## 3. 当前可工作的加载链
 
 ### 工具
 
@@ -55,7 +74,7 @@
 
 这条链不依赖根目录 `main.lua`。
 
-## 3. 推荐目录规范
+## 4. 推荐目录规范
 
 ### 工具
 
@@ -73,6 +92,19 @@ tool/
 - 工具脚本、xml、主模型尽量放同一目录
 - 路径命名统一成 `tool/工具名/工具名.xxx`
 - 这样最容易维护，也最方便复制出新工具
+
+### 共享模块
+
+推荐格式：
+
+```text
+shared/
+  phalanx_weapon/
+```
+
+用途：
+- 放 tool 和 vehicle 共用的武器系统逻辑
+- 不作为游戏内容分类目录
 
 ### 触觉
 
@@ -106,7 +138,7 @@ vehicle/
 - 载具 prefab 内直接引用脚本
 - 通过 `spawn.txt` 暴露给生成菜单
 
-## 4. 路径引用规则
+## 5. 路径引用规则
 
 这部分是当前项目里最重要的实践经验。
 
@@ -155,7 +187,7 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 - 资源文件路径最稳的是 `MOD/...`
 - 包括 tool xml、vox、haptic、snd 等
 
-## 5. 为什么工具不能只靠 `main.xml -> tool/phalanx/phalanx.lua`
+## 6. 为什么工具不能只靠 `main.xml -> tool/phalanx/phalanx.lua`
 
 这是本次整理最重要的结论之一。
 
@@ -171,7 +203,7 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 这说明在本项目里：
 - 根目录 `main.lua` 才是稳定的全局工具注册入口
 
-## 6. 推荐的全局入口模式
+## 7. 推荐的全局入口模式
 
 如果后面工具变多，推荐把 [main.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/main.lua) 维持成一个很薄的入口：
 
@@ -188,7 +220,7 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 - 全局注册点清晰
 - 很适合逐步扩展项目
 
-## 7. 当前项目建议
+## 8. 当前项目建议
 
 后续建议遵循下面这套规则：
 
@@ -206,12 +238,15 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 4. 通用 haptic 放：
    - `haptic/`
 
-5. 载具继续放：
+5. 共享逻辑放：
+   - `shared/模块名/`
+
+6. 载具继续放：
    - `vehicle/...`
 
-6. 载具通过 `spawn.txt` 管理，不走工具注册链
+7. 载具通过 `spawn.txt` 管理，不走工具注册链
 
-## 8. 未来可以继续补充的文档
+## 9. 未来可以继续补充的文档
 
 接下来比较值得继续写成文档的有：
 
@@ -227,11 +262,94 @@ LoadHaptic("MOD/haptic/gun_fire.xml")
 4. 调试约定  
    例如日志、`DebugWatch`、调试开关放哪里
 
-## 9. 当前相关文件
+## 10. 当前相关文件
 
 - 全局入口：[main.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/main.lua)
 - 地图入口：[main.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/main.xml)
 - 工具脚本：[phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/tool/phalanx/phalanx.lua)
 - 工具 xml：[phalanx.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/tool/phalanx/phalanx.xml)
+- 共享模块规范：[shared-module-convention.md](C:/Users/13723/Documents/Teardown/mods/Phalanx/docs/shared-module-convention.md)
 - 载具脚本：[car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua)
 - 载具 xml：[mil-car-phalanx.xml](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/mil-car-phalanx.xml)
+
+## 11. 调试记录
+
+### 2026-04-04: shared include 路径在 tool 和 vehicle 中不能直接照搬
+
+现象：
+- 手持 `phalanx` 正常
+- 车载 `phalanx` 炮塔失去玩家控制，无法旋转和开火
+
+原因：
+- [phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/tool/phalanx/phalanx.lua) 是经由 [main.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/main.lua) 被 include
+- [car_phalanx.lua](C:/Users/13723/Documents/Teardown/mods/Phalanx/vehicle/military/car_phalanx.lua) 是由载具 xml 直接加载
+- 两者的 `#include` 相对路径解析上下文不一样
+
+错误写法：
+
+```lua
+#include "shared/phalanx_weapon/phalanx_weapon_config.lua"
+```
+
+这在 tool 脚本里可工作，但在 vehicle 脚本里会导致共享模块没有正确加载。
+
+修正写法：
+
+```lua
+#include "../../shared/phalanx_weapon/phalanx_weapon_config.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_projectile.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_fx.lua"
+```
+
+结论：
+- tool 侧共享 include 路径可以从根入口视角写
+- vehicle 侧共享 include 路径必须按脚本所在目录写相对路径
+- 后续做 shared 迁移时，要分别验证 tool 和 vehicle 两条链路
+
+### 2026-04-04: 第一人称视角下载具本体抽搐，第三人称正常
+
+现象：
+- 载具高速移动时，第一人称更容易看到载具本体抽搐
+- 第三人称相机基本流畅
+- 问题主要体现在第一人称，不是环境整体抖动
+
+原因：
+- 第三人称分支使用的是：
+  - `AttachCameraTo(body, false)`
+  - `SetCameraOffsetTransform(localTransform)`
+- 第一人称分支之前使用的是：
+  - `SetCameraTransform(worldTransform)`
+
+这意味着第一人称和第三人称相机分别走了“世界空间直接设相机”和“车体本地空间附着”两套不同的采样方式，高速移动时更容易出现观感不一致。
+
+### 2026-04-04: 车载第一人称近距离体素出现半透明
+
+现象：
+- 玩家切到车载第一人称时，离镜头很近的车体体素会出现半透明
+- 第三人称下这个现象不明显
+
+当前处理：
+- 在自定义车载相机运行时持续请求第三人称模式
+- 同时对车体和炮塔调用 `SetPivotClipBody(...)`
+
+说明：
+- 这是按当前 API 能力做的工程性规避，推测目标是绕开引擎默认的第一人称载具淡出行为
+- 如果后续测试表明效果稳定，可以保留这套做法作为车载第一人称相机的固定模板
+
+修复：
+- 第一人称分支也改成先计算世界空间相机
+- 再转成车体本地 transform
+- 然后统一用：
+
+```lua
+AttachCameraTo(body, false)
+SetCameraOffsetTransform(cameraLocalTransform)
+```
+
+结果：
+- 第一人称抽搐问题消失
+- 第三人称保持原本流畅表现
+
+结论：
+- 对于高速载具，相机最好统一走车体本地空间附着
+- 即使是第一人称，也尽量避免直接 `SetCameraTransform(world)` 作为最终输出
