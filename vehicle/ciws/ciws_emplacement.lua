@@ -2,22 +2,14 @@
 
 #include "script/include/player.lua"
 
--- Expected model file and object names:
---   MOD/vehicle/ciws/ciws.vox
---   object="base"
---   object="turret"
---   object="gun"
---   object="barrel"
---   object="radar"
-
 vehicle = 0
 baseBody = 0
 turretBody = 0
 gunBody = 0
 yawJoint = 0
-pitchJoint = 0
 
 cameraTransform = Transform()
+serverControlActive = false
 
 cameraState = {
 	initialized = false,
@@ -42,18 +34,12 @@ cameraConfig = {
 }
 
 jointConfig = {
-	yawOffset = 0.0,
-	pitchOffset = 0.0,
+	yawOffset = -90.0,
 	yawSign = -1.0,
-	pitchSign = -1.0,
-	yawMin = -180.0,
-	yawMax = 180.0,
-	pitchMin = -85.0,
-	pitchMax = 15.0,
-	yawMaxVel = math.rad(180.0),
-	pitchMaxVel = math.rad(120.0),
-	yawStrength = 10000.0,
-	pitchStrength = 8000.0,
+	yawMaxVel = math.rad(120.0),
+	yawBrakeVelDeg =50.0,
+	yawBrakeGain = 100,
+	yawBrakeStrength = 8000.0,
 }
 
 function clamp(v, lo, hi)
@@ -108,36 +94,28 @@ function server.init()
 	turretBody = FindBody("turret")
 	gunBody = FindBody("gun")
 	yawJoint = FindJoint("ciws_yaw")
-	pitchJoint = FindJoint("ciws_pitch")
 end
 
 function server.setCameraTransform(t)
 	cameraTransform = t
 end
 
+function server.setControlActive(active, controlledVehicle, controlledBody)
+	serverControlActive = active
+end
+
 function server.tick(dt)
-	if vehicle == 0 or baseBody == 0 or turretBody == 0 or gunBody == 0 then
+	if vehicle == 0 or baseBody == 0 or turretBody == 0 then
 		return
 	end
-	if yawJoint == 0 or pitchJoint == 0 then
+	if yawJoint == 0 then
 		return
 	end
-	-- 核心的 gunBody 坏了就不继续控制了
-	if IsBodyBroken(gunBody) then
+	if IsBodyBroken(turretBody) then
 		return
 	end
 
-	local isBaseBroken = IsBodyBroken(baseBody)
-	local isTurretBroken = IsBodyBroken(turretBody)
-
-	local driverId = 0
-	for p in Players() do
-		if GetPlayerVehicle(p) == vehicle then
-			driverId = p
-			break
-		end
-	end
-	if driverId == 0 then
+	if not serverControlActive then
 		return
 	end
 
@@ -146,29 +124,26 @@ function server.tick(dt)
 
 	local baseTransform = GetBodyTransform(baseBody)
 	local localYawDir = TransformToLocalVec(baseTransform, aimDir)
-	local yaw, _ = dirToYawPitch(localYawDir)
-	yaw = wrapAngle(yaw * jointConfig.yawSign + jointConfig.yawOffset)
-	yaw = clamp(yaw, jointConfig.yawMin, jointConfig.yawMax)
+	local yawWrapped = select(1, dirToYawPitch(localYawDir))
+	local rawTarget = wrapAngle(yawWrapped * jointConfig.yawSign + jointConfig.yawOffset)
+
+	local yawMaxVel = jointConfig.yawMaxVel
+	if IsBodyBroken(baseBody) then
+		yawMaxVel = yawMaxVel * 0.5
+	end
 
 	local turretTransform = GetBodyTransform(turretBody)
-	local localPitchDir = TransformToLocalVec(turretTransform, aimDir)
-	local _, pitch = dirToYawPitch(localPitchDir)
-	pitch = wrapAngle(pitch * jointConfig.pitchSign + jointConfig.pitchOffset)
-	pitch = clamp(pitch, jointConfig.pitchMin, jointConfig.pitchMax)
-	
-	local currentYawMaxVel = jointConfig.yawMaxVel
-	local currentPitchMaxVel = jointConfig.pitchMaxVel
-	
-	-- 根据你的需要：如果底座损坏偏航减半，如果炮塔上座损坏俯仰减半
-	if isBaseBroken then
-		currentYawMaxVel = currentYawMaxVel * 0.5
-	end
-	if isTurretBroken then
-		currentPitchMaxVel = currentPitchMaxVel * 0.5
-	end
-
-	SetJointMotorTarget(yawJoint, yaw, currentYawMaxVel, jointConfig.yawStrength)
-	SetJointMotorTarget(pitchJoint, pitch, currentPitchMaxVel, jointConfig.pitchStrength)
+	local turretForwardWorld = TransformToParentVec(turretTransform, Vec(0, 0, 1))
+	local turretForwardLocal = TransformToLocalVec(baseTransform, turretForwardWorld)
+	local currentYaw = select(1, dirToYawPitch(turretForwardLocal))
+	currentYaw = wrapAngle(currentYaw * jointConfig.yawSign)
+	local yawError = wrapAngle(rawTarget - currentYaw)
+	local desiredVelDeg = clamp(
+		yawError * jointConfig.yawBrakeGain,
+		-jointConfig.yawBrakeVelDeg,
+		jointConfig.yawBrakeVelDeg
+	)
+	SetJointMotor(yawJoint, math.rad(desiredVelDeg), jointConfig.yawBrakeStrength)
 end
 
 function client.init()
@@ -180,8 +155,15 @@ function client.init()
 end
 
 function client.tick(dt)
-	if GetPlayerVehicle() ~= vehicle then
+	local currentVehicle = GetPlayerVehicle()
+	local currentVehicleBody = 0
+	if currentVehicle ~= 0 then
+		currentVehicleBody = GetVehicleBody(currentVehicle)
+	end
+
+	if currentVehicle == 0 or currentVehicleBody ~= baseBody then
 		cameraState.initialized = false
+		ServerCall("server.setControlActive", false, currentVehicle, currentVehicleBody)
 		return
 	end
 
@@ -227,9 +209,6 @@ function client.tick(dt)
 	local target = VecAdd(pivot.pos, VecScale(forward, 100.0))
 	local useFirstPerson = cameraState.distance <= cfg.firstPersonThreshold
 
-	-- Keep the engine in first-person vehicle mode at all times.
-	-- Our custom camera still handles both near and far views, but this avoids
-	-- the built-in third-person fade that makes the turret go translucent.
 	RequestThirdPerson(false)
 	if gunBody ~= 0 then
 		SetPivotClipBody(gunBody, 0)
@@ -245,14 +224,6 @@ function client.tick(dt)
 		end
 		local camPos = VecAdd(fpPivot.pos, VecScale(forward, 0.1))
 		cameraTransform = Transform(camPos, QuatLookAt(camPos, target))
-		if baseBody ~= 0 then
-			local baseTransform = GetBodyTransform(baseBody)
-			local cameraLocalTransform = TransformToLocalTransform(baseTransform, cameraTransform)
-			AttachCameraTo(baseBody, false)
-			SetCameraOffsetTransform(cameraLocalTransform)
-		else
-			SetCameraTransform(cameraTransform, cfg.fov)
-		end
 	else
 		local idealPos = VecAdd(pivot.pos, VecScale(forward, -cameraState.distance))
 		idealPos = VecAdd(idealPos, VecScale(up, cameraState.height))
@@ -280,15 +251,17 @@ function client.tick(dt)
 		end
 
 		cameraTransform = Transform(camPos, QuatLookAt(camPos, target))
-		if baseBody ~= 0 then
-			local baseTransform = GetBodyTransform(baseBody)
-			local cameraLocalTransform = TransformToLocalTransform(baseTransform, cameraTransform)
-			AttachCameraTo(baseBody, false)
-			SetCameraOffsetTransform(cameraLocalTransform)
-		else
-			SetCameraTransform(cameraTransform, cfg.fov)
-		end
 	end
-	
+
+	if baseBody ~= 0 then
+		local baseTransform = GetBodyTransform(baseBody)
+		local cameraLocalTransform = TransformToLocalTransform(baseTransform, cameraTransform)
+		AttachCameraTo(baseBody, false)
+		SetCameraOffsetTransform(cameraLocalTransform)
+	else
+		SetCameraTransform(cameraTransform, cfg.fov)
+	end
+
+	ServerCall("server.setControlActive", true, currentVehicle, currentVehicleBody)
 	ServerCall("server.setCameraTransform", cameraTransform)
 end
