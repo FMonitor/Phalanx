@@ -14,6 +14,7 @@
 					<body name="gun" tags="gun" pos="0.0 0.5 -0.2" dynamic="true">
 						<joint name="pitch" tags="ciws_pitch" type="hinge" pos="0.0 0.0 0.0" rot="0.0 0.0 90.0" size="0.15" collide="false" rotspring="0" rotstrength="300"/>
 						<vox file="MOD/vehicle/ciws/ciws.vox" object="gun"/>
+						<vox tags="ciws_barrel" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
 					</body>
 				</body>
 			</body>
