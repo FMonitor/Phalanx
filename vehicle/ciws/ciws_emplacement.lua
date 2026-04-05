@@ -7,6 +7,8 @@
 --   object="base"
 --   object="turret"
 --   object="gun"
+--   object="barrel"
+--   object="radar"
 
 vehicle = 0
 baseBody = 0
@@ -42,16 +44,16 @@ cameraConfig = {
 jointConfig = {
 	yawOffset = 0.0,
 	pitchOffset = 0.0,
-	yawSign = 1.0,
-	pitchSign = 1.0,
+	yawSign = -1.0,
+	pitchSign = -1.0,
 	yawMin = -180.0,
 	yawMax = 180.0,
-	pitchMin = -15.0,
-	pitchMax = 85.0,
+	pitchMin = -85.0,
+	pitchMax = 15.0,
 	yawMaxVel = math.rad(180.0),
 	pitchMaxVel = math.rad(120.0),
-	yawStrength = 400.0,
-	pitchStrength = 300.0,
+	yawStrength = 10000.0,
+	pitchStrength = 8000.0,
 }
 
 function clamp(v, lo, hi)
@@ -120,9 +122,13 @@ function server.tick(dt)
 	if yawJoint == 0 or pitchJoint == 0 then
 		return
 	end
-	if IsBodyBroken(baseBody) or IsBodyBroken(turretBody) or IsBodyBroken(gunBody) then
+	-- 核心的 gunBody 坏了就不继续控制了
+	if IsBodyBroken(gunBody) then
 		return
 	end
+
+	local isBaseBroken = IsBodyBroken(baseBody)
+	local isTurretBroken = IsBodyBroken(turretBody)
 
 	local driverId = 0
 	for p in Players() do
@@ -149,9 +155,20 @@ function server.tick(dt)
 	local _, pitch = dirToYawPitch(localPitchDir)
 	pitch = wrapAngle(pitch * jointConfig.pitchSign + jointConfig.pitchOffset)
 	pitch = clamp(pitch, jointConfig.pitchMin, jointConfig.pitchMax)
+	
+	local currentYawMaxVel = jointConfig.yawMaxVel
+	local currentPitchMaxVel = jointConfig.pitchMaxVel
+	
+	-- 根据你的需要：如果底座损坏偏航减半，如果炮塔上座损坏俯仰减半
+	if isBaseBroken then
+		currentYawMaxVel = currentYawMaxVel * 0.5
+	end
+	if isTurretBroken then
+		currentPitchMaxVel = currentPitchMaxVel * 0.5
+	end
 
-	SetJointMotorTarget(yawJoint, yaw, jointConfig.yawMaxVel, jointConfig.yawStrength)
-	SetJointMotorTarget(pitchJoint, pitch, jointConfig.pitchMaxVel, jointConfig.pitchStrength)
+	SetJointMotorTarget(yawJoint, yaw, currentYawMaxVel, jointConfig.yawStrength)
+	SetJointMotorTarget(pitchJoint, pitch, currentPitchMaxVel, jointConfig.pitchStrength)
 end
 
 function client.init()
@@ -167,6 +184,8 @@ function client.tick(dt)
 		cameraState.initialized = false
 		return
 	end
+
+	SetPlayerHidden()
 
 	local cfg = cameraConfig
 	local pivot = GetVehicleLocationWorldTransform(vehicle, "camera")
@@ -208,9 +227,15 @@ function client.tick(dt)
 	local target = VecAdd(pivot.pos, VecScale(forward, 100.0))
 	local useFirstPerson = cameraState.distance <= cfg.firstPersonThreshold
 
-	RequestThirdPerson(not useFirstPerson)
+	-- Keep the engine in first-person vehicle mode at all times.
+	-- Our custom camera still handles both near and far views, but this avoids
+	-- the built-in third-person fade that makes the turret go translucent.
+	RequestThirdPerson(false)
 	if gunBody ~= 0 then
 		SetPivotClipBody(gunBody, 0)
+	end
+	if turretBody ~= 0 then
+		SetPivotClipBody(turretBody, 0)
 	end
 
 	if useFirstPerson then
@@ -220,6 +245,14 @@ function client.tick(dt)
 		end
 		local camPos = VecAdd(fpPivot.pos, VecScale(forward, 0.1))
 		cameraTransform = Transform(camPos, QuatLookAt(camPos, target))
+		if baseBody ~= 0 then
+			local baseTransform = GetBodyTransform(baseBody)
+			local cameraLocalTransform = TransformToLocalTransform(baseTransform, cameraTransform)
+			AttachCameraTo(baseBody, false)
+			SetCameraOffsetTransform(cameraLocalTransform)
+		else
+			SetCameraTransform(cameraTransform, cfg.fov)
+		end
 	else
 		local idealPos = VecAdd(pivot.pos, VecScale(forward, -cameraState.distance))
 		idealPos = VecAdd(idealPos, VecScale(up, cameraState.height))
@@ -247,16 +280,15 @@ function client.tick(dt)
 		end
 
 		cameraTransform = Transform(camPos, QuatLookAt(camPos, target))
+		if baseBody ~= 0 then
+			local baseTransform = GetBodyTransform(baseBody)
+			local cameraLocalTransform = TransformToLocalTransform(baseTransform, cameraTransform)
+			AttachCameraTo(baseBody, false)
+			SetCameraOffsetTransform(cameraLocalTransform)
+		else
+			SetCameraTransform(cameraTransform, cfg.fov)
+		end
 	end
-
-	if baseBody ~= 0 then
-		local baseTransform = GetBodyTransform(baseBody)
-		local cameraLocalTransform = TransformToLocalTransform(baseTransform, cameraTransform)
-		AttachCameraTo(baseBody, false)
-		SetCameraOffsetTransform(cameraLocalTransform)
-	else
-		SetCameraTransform(cameraTransform, cfg.fov)
-	end
-
+	
 	ServerCall("server.setCameraTransform", cameraTransform)
 end
