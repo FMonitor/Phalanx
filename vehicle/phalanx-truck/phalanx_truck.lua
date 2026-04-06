@@ -9,7 +9,7 @@
 
 vehiclePhalanxConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_vehicle",
-	fireCooldown = 0.06,
+	fireCooldown = 0.075,
 	spread = 0.01,
 	ejectRightOffset = 0.4,
 	ejectUpOffset = 0,
@@ -547,10 +547,8 @@ function drawTool()
 	UiScale(1)
 	UiTextOutline(0, 0, 0, 1, 0.1)
 	UiColor(1, 1, 1, 1)
-	UiText("PHALANX")
-	UiTranslate(0, -24)
-	UiScale(1.6)
-	UiText("TRUCK")
+
+	UiText("AA TRUCK")
 	UiPop()
 	UiPop()
 end

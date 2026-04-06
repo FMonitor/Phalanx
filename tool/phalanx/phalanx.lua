@@ -13,7 +13,7 @@
 players = {}
 toolPhalanxConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_tool",
-	fireCooldown = 0.1,
+	fireCooldown = 0.12,
 	spread = 0.012,
 	ejectRightOffset = 0.1,
 	ejectUpOffset = -0.1,
@@ -37,8 +37,8 @@ end
 
 function server.init()
 	RegisterTool("phalanx", "Phalanx", "MOD/tool/phalanx/phalanx.xml", 6)
-	SetToolAmmo("phalanx", 300)
-	SetToolAmmoPickupAmount("phalanx", 50)
+	SetToolAmmo("phalanx", 100)
+	SetToolAmmoPickupAmount("phalanx", 20)
 end
 
 function rndVec(length)
@@ -69,7 +69,7 @@ function server.tick(dt)
 	for p in PlayersAdded() do
 		players[p] = createPlayerData()
 		SetToolEnabled("phalanx", true, p)
-		SetToolAmmo("phalanx", -1, p)
+		SetToolAmmo("phalanx", 100, p)
 	end
 
 	for p in PlayersRemoved() do
@@ -89,7 +89,7 @@ function server.tickPlayer(p, dt)
 	local ammo = GetToolAmmo("phalanx", p)
 	local data = players[p]
 
-	if InputDown("usetool", p) and ammo > -2 and GetPlayerVehicle(p) == 0 then
+	if InputDown("usetool", p) and ammo > 0 and GetPlayerVehicle(p) == 0 then
 		local mt = GetToolLocationWorldTransform("muzzle", p)
 
 		if mt == nil then
@@ -98,6 +98,7 @@ function server.tickPlayer(p, dt)
 
 		phalanxWeaponSpin.tickSpin(data, dt, true)
 		if phalanxWeaponSpin.tryFire(data, toolPhalanxConfig) then
+			SetToolAmmo("phalanx", ammo - 1, p)
 			local _, _, _, dir = GetPlayerAimInfo(mt.pos, 100, p)
 			dir = VecAdd(dir, rndVec(toolPhalanxConfig.spread))
 			local pos = TransformToParentPoint(mt, Vec(0.05, -0.2, 1))
@@ -156,7 +157,7 @@ function client.tickPlayer(p, dt)
 
 	local data = players[p]
 
-	if InputDown("usetool", p) and ammo > -2 and GetPlayerVehicle(p) == 0 then
+	if InputDown("usetool", p) and ammo > 0 and GetPlayerVehicle(p) == 0 then
 		phalanxWeaponSpin.tickSpin(data, dt, true)
 		if phalanxWeaponSpin.tryFire(data, toolPhalanxConfig) then
 			phalanxWeaponAudio.playShot(audioState, toolPhalanxConfig, pt.pos)
