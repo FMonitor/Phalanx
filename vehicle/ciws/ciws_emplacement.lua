@@ -15,6 +15,8 @@ debugPitchTarget = 0.0
 debugPitchCurrent = 0.0
 debugPitchError = 0.0
 debugPitchVelDeg = 0.0
+turretRotLoop = 0
+turretRotVolume = 1.5
 yawMotorVelDeg = 0.0
 pitchMotorVelDeg = 0.0
 
@@ -103,6 +105,28 @@ end
 function dirToPitchFromX(dir)
 	local d = VecNormalize(dir)
 	return math.deg(math.atan2(d[2], d[1]))
+end
+
+function getLocalYawError()
+	if baseBody == 0 or turretBody == 0 then
+		return 0.0
+	end
+
+	local aimDir = TransformToParentVec(cameraTransform, Vec(0, 0, -1))
+	aimDir = VecNormalize(aimDir)
+
+	local baseTransform = GetBodyTransform(baseBody)
+	local localYawDir = TransformToLocalVec(baseTransform, aimDir)
+	local yawWrapped = select(1, dirToYawPitch(localYawDir))
+	local rawTarget = wrapAngle(yawWrapped * jointConfig.yawSign + jointConfig.yawOffset)
+
+	local turretTransform = GetBodyTransform(turretBody)
+	local turretForwardWorld = TransformToParentVec(turretTransform, Vec(0, 0, 1))
+	local turretForwardLocal = TransformToLocalVec(baseTransform, turretForwardWorld)
+	local currentYaw = select(1, dirToYawPitch(turretForwardLocal))
+	currentYaw = wrapAngle(currentYaw * jointConfig.yawSign)
+
+	return wrapAngle(rawTarget - currentYaw)
 end
 
 function getGunMountedTransform(localPos, localRot)
@@ -236,6 +260,7 @@ function client.init()
 	gunBody = FindBody("gun")
 	pitchJoint = FindJoint("ciws_pitch")
 	cameraState.initialized = false
+	turretRotLoop = LoadLoop("MOD/snd/turret-rot.ogg")
 end
 
 function client.tick(dt)
@@ -349,6 +374,12 @@ function client.tick(dt)
 		SetCameraOffsetTransform(cameraLocalTransform)
 	else
 		SetCameraTransform(cameraTransform, cfg.fov)
+	end
+
+	local yawError = getLocalYawError()
+	if turretRotLoop ~= 0 and math.abs(yawError) > jointConfig.motorStopError*10 then
+		local soundPos = GetBodyTransform(turretBody).pos
+		PlayLoop(turretRotLoop, soundPos, turretRotVolume)
 	end
 
 	ServerCall("server.setControlActive", true, currentVehicle, currentVehicleBody)
