@@ -7,9 +7,14 @@ baseBody = 0
 turretBody = 0
 gunBody = 0
 yawJoint = 0
+pitchJoint = 0
 
 cameraTransform = Transform()
 serverControlActive = false
+debugPitchTarget = 0.0
+debugPitchCurrent = 0.0
+debugPitchError = 0.0
+debugPitchVelDeg = 0.0
 
 cameraState = {
 	initialized = false,
@@ -36,8 +41,10 @@ cameraConfig = {
 jointConfig = {
 	yawOffset = -90.0,
 	yawSign = -1.0,
+	pitchOffset = 0.0,
+	pitchSign = -1.0,
 	motorStopError = 1.0,
-	motorStrength = 8000.0,
+	motorStrength = 10000.0,
 	yawSpeedDeg = 50.0,
 	pitchSpeedDeg = 35.0,
 }
@@ -80,6 +87,11 @@ function yawPitchToDir(yawDeg, pitchDeg)
 	)
 end
 
+function dirToPitchFromX(dir)
+	local d = VecNormalize(dir)
+	return math.deg(math.atan2(d[2], d[1]))
+end
+
 function findMountedVehicle()
 	local v = FindVehicle()
 	if v == 0 then
@@ -94,6 +106,7 @@ function server.init()
 	turretBody = FindBody("turret")
 	gunBody = FindBody("gun")
 	yawJoint = FindJoint("ciws_yaw")
+	pitchJoint = FindJoint("ciws_pitch")
 end
 
 function server.setCameraTransform(t)
@@ -105,17 +118,21 @@ function server.setControlActive(active, controlledVehicle, controlledBody)
 end
 
 function server.tick(dt)
-	if vehicle == 0 or baseBody == 0 or turretBody == 0 then
+	if vehicle == 0 or baseBody == 0 or turretBody == 0 or gunBody == 0 then
+		DebugWatch("CIWS SRV PitchState", "missing_handles")
 		return
 	end
-	if yawJoint == 0 then
+	if yawJoint == 0 or pitchJoint == 0 then
+		DebugWatch("CIWS SRV PitchState", "missing_joint")
 		return
 	end
-	if IsBodyBroken(turretBody) then
+	if IsBodyBroken(turretBody) or IsBodyBroken(gunBody) then
+		DebugWatch("CIWS SRV PitchState", "broken")
 		return
 	end
 
 	if not serverControlActive then
+		DebugWatch("CIWS SRV PitchState", "inactive")
 		return
 	end
 
@@ -147,6 +164,40 @@ function server.tick(dt)
 		desiredVelDeg = desiredVelDeg * 0.5
 	end
 	SetJointMotor(yawJoint, math.rad(desiredVelDeg), desiredStrength)
+
+	local turretAimDir = TransformToLocalVec(turretTransform, aimDir)
+	local rawPitchTarget = dirToPitchFromX(turretAimDir)
+	rawPitchTarget = wrapAngle(rawPitchTarget * jointConfig.pitchSign + jointConfig.pitchOffset)
+	debugPitchTarget = rawPitchTarget
+
+	local gunTransform = GetBodyTransform(gunBody)
+	local gunForwardWorld = TransformToParentVec(gunTransform, Vec(1, 0, 0))
+	local gunForwardLocal = TransformToLocalVec(turretTransform, gunForwardWorld)
+	local currentPitch = dirToPitchFromX(gunForwardLocal)
+	currentPitch = wrapAngle(currentPitch * jointConfig.pitchSign)
+	debugPitchCurrent = currentPitch
+	local pitchError = wrapAngle(rawPitchTarget - currentPitch)
+	debugPitchError = pitchError
+	local desiredPitchVelDeg = 0.0
+	local desiredPitchStrength = jointConfig.motorStrength
+	if math.abs(pitchError) > jointConfig.motorStopError then
+		if pitchError > 0.0 then
+			desiredPitchVelDeg = jointConfig.pitchSpeedDeg
+		else
+			desiredPitchVelDeg = -jointConfig.pitchSpeedDeg
+		end
+	end
+	if IsBodyBroken(turretBody) then
+		desiredPitchVelDeg = desiredPitchVelDeg * 0.5
+	end
+	debugPitchVelDeg = desiredPitchVelDeg
+	SetJointMotor(pitchJoint, math.rad(desiredPitchVelDeg), desiredPitchStrength)
+
+	DebugWatch("CIWS SRV PitchState", "active")
+	DebugWatch("CIWS SRV PitchTarget", string.format("%.1f", debugPitchTarget))
+	DebugWatch("CIWS SRV PitchCurrent", string.format("%.1f", debugPitchCurrent))
+	DebugWatch("CIWS SRV PitchError", string.format("%.1f", debugPitchError))
+	DebugWatch("CIWS SRV PitchVel", string.format("%.1f", debugPitchVelDeg))
 end
 
 function client.init()
@@ -154,6 +205,7 @@ function client.init()
 	baseBody = FindBody("base")
 	turretBody = FindBody("turret")
 	gunBody = FindBody("gun")
+	pitchJoint = FindJoint("ciws_pitch")
 	cameraState.initialized = false
 end
 
