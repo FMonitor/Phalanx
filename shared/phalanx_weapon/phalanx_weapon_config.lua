@@ -19,7 +19,15 @@ phalanxWeaponConfigDefaults = phalanxWeaponConfigDefaults or {
 	ejectUpSpeed = 1.5,
 	ejectForwardSpeed = 0.6,
 	ejectRandomSpeed = 1.2,
+	ejectRandomSpeed = 1.2,
 	ejectAngularSpeed = 25.0,
+	
+	-- Heat & Overheat Config
+	heatPerShot = 0.01,         -- Each shot adds 1% heat
+	heatCoolingBase = 0.1,       -- Base cooling speed 10%/sec
+	heatCoolingDynamic = 0.18,    -- Extra cooling speed when cold (e.g., 100% - heat = +10%/sec)
+	heatOverheatThreshold = 1.0, -- Reach 1.0 to overheat
+	heatRecoverThreshold = 0.0,  -- Must reach 0.0 to recover from overheat
 }
 
 function phalanxWeaponMakeConfig(overrides)

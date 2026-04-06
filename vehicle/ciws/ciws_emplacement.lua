@@ -64,12 +64,9 @@ jointConfig = {
 	motorSlowdownDegPerSec = 40.0,
 }
 
--- x�?第一个数�?为前后，正数往前延�?
--- y�?第二个数�?为上下，正数向上�?
--- z�?第三个数�?为左右，正数向右偏移
 weaponOffsets = {
-	muzzle = Vec(3, 0, -0.05),    -- 【枪口开火生成点】（即火光和子弹起点�?
-	spinPivot = Vec(0.0, 0.35, 0.35) -- 【枪管旋转轴圆心�?
+	muzzle = Vec(3, 0, -0.05),    -- 枪口开火生成点（即火光和子弹起点
+	spinPivot = Vec(0.0, 0.35, 0.35) -- 枪管旋转轴圆心
 }
 
 barrelSpinState = nil
@@ -78,6 +75,8 @@ turretRotVolume = 1.5
 audioState = nil
 shootHaptic = 0
 reticle = 0
+barrelHeat = 0.0
+isOverheated = false
 
 function getModuleStatus(moduleBody, moduleJoint, moduleShapeTag, minVoxels)
 	if moduleBody == 0 or not IsHandleValid(moduleBody) then return "Destroyed" end
@@ -333,8 +332,18 @@ function server.tick(dt)
 	local radarStatus = getModuleStatus(gunBody, 0, "ciws_radar", 10)
 	local mountStatus = getModuleStatus(gunBody, pitchJoint, "ciws_mount", 10)
 
+	local heatConfig = ciwsWeaponConfig
+	local heatCoolingDynamic = heatConfig.heatCoolingDynamic or 0.1
+	local heatCoolingBase = heatConfig.heatCoolingBase or 0.1
+	local coolRate = heatCoolingBase + (1.0 - barrelHeat) * heatCoolingDynamic
+	barrelHeat = math.max(0.0, barrelHeat - dt * coolRate)
+	
+	if isOverheated and barrelHeat <= (heatConfig.heatRecoverThreshold or 0.0) then
+		isOverheated = false
+	end
+
 	local currentlyFiring = false
-	if gunStatus ~= "Destroyed" then
+	if gunStatus ~= "Destroyed" and not isOverheated and mountStatus ~= "Destroyed" then
 		currentlyFiring = serverFireInput or autoFireEnabled
 	end
 
@@ -411,6 +420,12 @@ function server.tick(dt)
 
 	phalanxWeaponSpin.tickSpin(spin, dt, currentlyFiring)
 	if currentlyFiring and phalanxWeaponSpin.tryFire(spin, ciwsWeaponConfig) then
+		local heatPerShot = heatConfig.heatPerShot or 0.015
+		barrelHeat = math.min(1.0, barrelHeat + heatPerShot)
+		if barrelHeat >= (heatConfig.heatOverheatThreshold or 1.0) then
+			isOverheated = true
+		end
+
 		local currentSpread = ciwsWeaponConfig.spread
 		if gunStatus == "Damaged" then
 			currentSpread = currentSpread * 5.0
@@ -422,6 +437,9 @@ function server.tick(dt)
 
 		ClientCall(0, "client.playGunShot", muzzlePos[1], muzzlePos[2], muzzlePos[3])
 	end
+
+	SetFloat("vehicle."..vehicle..".barrelHeat", barrelHeat)
+	SetBool("vehicle."..vehicle..".isOverheated", isOverheated)
 
 	animateBarrelSpin()
 end
@@ -476,19 +494,22 @@ function client.draw(dt)
 	local radarStatus = getModuleStatus(gunBody, 0, "ciws_radar", 10)
 	local mountStatus = getModuleStatus(gunBody, pitchJoint, "ciws_mount", 10)	
 
+	barrelHeat = GetFloat("vehicle."..vehicle..".barrelHeat")
+	isOverheated = GetBool("vehicle."..vehicle..".isOverheated")
+
 	UiPush()
-		UiTranslate(UiWidth() - 620, UiHeight() - 215)
+		UiTranslate(UiWidth() - 550, UiHeight() - 200)
 		UiAlign("left top")
 		UiColor(0.06, 0.07, 0.09, 0.78)
-		UiRect(290, 165)
+		UiRect(240, 165)
 
 		UiPush()
 			UiColor(1, 1, 1, 0.3)
-			UiRect(290, 2)
+			UiRect(240, 2)
 			UiRect(2, 165)
 			UiTranslate(0, 163)
-			UiRect(290, 2)
-			UiTranslate(288, -163)
+			UiRect(240, 2)
+			UiTranslate(338, -163)
 			UiRect(2, 165)
 		UiPop()
 
@@ -518,10 +539,39 @@ function client.draw(dt)
 			UiPop()
 		end
 
-		drawStatus("Gun:", gunStatus, 0)
+		drawStatus("Barrel:", gunStatus, 0)
 		drawStatus("Mount:", mountStatus, 20)
 		drawStatus("Turret:", turretStatus, 40)
 		drawStatus("Radar:", radarStatus, 60)
+
+		UiPush()
+			UiTranslate(160, -20) -- right side
+			UiColor(0.2, 0.2, 0.2, 1)
+			UiRect(20, 100) -- empty bar wrapper
+			
+			UiTranslate(2, 2)
+			UiColor(0.1, 0.1, 0.1, 1)
+			UiRect(16, 96) -- inner wrapper
+			
+			if barrelHeat > 0.0 then
+				local heatH = barrelHeat * 96
+				UiTranslate(0, 96 - heatH)
+				if isOverheated then
+					UiColor(1, 0.2, 0.2, 1)
+				else
+					UiColor(lerp(0.2, 1.0, barrelHeat), lerp(0.8, 0.2, barrelHeat), 0.2, 1)
+				end
+				UiRect(16, heatH)
+				UiTranslate(0, -(96 - heatH))
+			end
+			
+			if isOverheated then
+				UiTranslate(-30, 107)
+				UiColor(1, 0.1, 0.1, 1)
+				UiFont("bold.ttf", 16)
+				UiText("OVERHEAT")
+			end
+		UiPop()
 		
 		UiTranslate(0, 88)
 		if autoFireState.enabled then
@@ -682,9 +732,39 @@ function client.tick(dt)
 		PlayLoop(turretRotLoop, soundPos, turretRotVolume)
 	end
 
+	barrelHeat = GetFloat("vehicle."..vehicle..".barrelHeat")
+	isOverheated = GetBool("vehicle."..vehicle..".isOverheated")
+
 	local firing = InputDown("vehicleraise") or InputDown("usetool") or autoFireState.enabled
-	if firing and gunStatus ~= "Destroyed" and mountStatus ~= "Destroyed" then
+	if firing and gunStatus ~= "Destroyed" and mountStatus ~= "Destroyed" and not isOverheated then
 		phalanxWeaponAudio.playSpin(audioState, ciwsWeaponConfig, cameraTransform.pos)
+	end
+	
+	if barrelHeat > 0.01 and gunStatus ~= "Destroyed" and gunBody ~= 0 then
+		local smokeChance = barrelHeat * dt * 35.0
+		if firing and not isOverheated then
+			smokeChance = smokeChance * 1.5 -- Extra smoke pressure when actively firing
+		end
+		
+		if math.random() < smokeChance then
+			local muzzlePos, muzzleDir = getMuzzlePosAndDir()
+			local pushMuzzle = 0.5
+			if firing and not isOverheated then 
+				pushMuzzle = 3.0 -- Push smoke further out when gun is blasting
+			end
+			local vel = VecAdd(Vec(0, 1.0, 0), VecScale(muzzleDir, pushMuzzle + barrelHeat * 0.5))
+			vel = VecAdd(vel, rndVec(0.6))
+			
+			ParticleReset()
+			ParticleType("smoke")
+			ParticleColor(0.9, 0.9, 0.9)
+			ParticleAlpha(0.5 * barrelHeat, 0.0) -- Cap the alpha nicely
+			ParticleRadius(0.1 + barrelHeat * 0.2, 0.6 + barrelHeat * 1.2)
+			ParticleGravity(0.8) -- Slightly lighter gravity so hot smoke goes up faster
+			ParticleDrag(1.5)
+			
+			SpawnParticle(muzzlePos, vel, 1.0 + barrelHeat * 2.0)
+		end
 	end
 
 	ServerCall("server.setControlState", true, firing)
