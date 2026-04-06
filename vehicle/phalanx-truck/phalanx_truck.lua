@@ -9,7 +9,7 @@
 
 vehiclePhalanxConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_vehicle",
-	fireCooldown = 0.05,
+	fireCooldown = 0.06,
 	spread = 0.01,
 	ejectRightOffset = 0.4,
 	ejectUpOffset = 0,

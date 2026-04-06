@@ -23,7 +23,7 @@ pitchMotorVelDeg = 0.0
 
 ciwsWeaponConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_ciws",
-	fireCooldown = 0.015,
+	fireCooldown = 0.02,
 	spread = 0.008,
 })
 
@@ -45,7 +45,7 @@ cameraConfig = {
 	distMin = 0.0,
 	distMax = 14.0,
 	firstPersonThreshold = 0.65,
-	pitchMin = -89.0,
+	pitchMin = -10.0,
 	pitchMax = 85.0,
 	radius = 0.25,
 	smooth = 10.0,
@@ -64,12 +64,12 @@ jointConfig = {
 	motorSlowdownDegPerSec = 40.0,
 }
 
--- x轴(第一个数字)为前后，正数往前延伸
--- y轴(第二个数字)为上下，正数向上走
--- z轴(第三个数字)为左右，正数向右偏移
+-- x�?第一个数�?为前后，正数往前延�?
+-- y�?第二个数�?为上下，正数向上�?
+-- z�?第三个数�?为左右，正数向右偏移
 weaponOffsets = {
-	muzzle = Vec(3, 0, -0.05),    -- 【枪口开火生成点】（即火光和子弹起点）
-	spinPivot = Vec(0.0, 0.35, 0.35) -- 【枪管旋转轴圆心】
+	muzzle = Vec(3, 0, -0.05),    -- 【枪口开火生成点】（即火光和子弹起点�?
+	spinPivot = Vec(0.0, 0.35, 0.35) -- 【枪管旋转轴圆心�?
 }
 
 barrelSpinState = nil
@@ -78,6 +78,35 @@ turretRotVolume = 1.5
 audioState = nil
 shootHaptic = 0
 reticle = 0
+
+function getModuleStatus(moduleBody, moduleJoint, moduleShapeTag, minVoxels)
+	if moduleBody == 0 or not IsHandleValid(moduleBody) then return "Destroyed" end
+	if moduleJoint ~= 0 and (not IsHandleValid(moduleJoint) or IsJointBroken(moduleJoint)) then return "Destroyed" end
+
+	if moduleShapeTag and moduleShapeTag ~= "" then
+		local foundGood = false
+		local shapeDamaged = false
+		local shapes = GetBodyShapes(moduleBody)
+		if shapes ~= nil then
+			for i=1, #shapes do
+				if HasTag(shapes[i], moduleShapeTag) then	
+					if GetShapeVoxelCount(shapes[i]) >= minVoxels then
+						foundGood = true
+						if IsShapeBroken(shapes[i]) then
+							shapeDamaged = true
+						end
+					end
+					break
+				end
+			end
+		end
+		if not foundGood then return "Destroyed" end
+		if shapeDamaged then return "Damaged" end
+		return "Good"
+	end
+	if IsBodyBroken(moduleBody) then return "Damaged" end
+	return "Good"
+end
 
 function clamp(v, lo, hi)
 	if v < lo then return lo end
@@ -296,13 +325,18 @@ function server.tick(dt)
 	if yawJoint == 0 or pitchJoint == 0 then
 		return
 	end
-	if IsBodyBroken(turretBody) or IsBodyBroken(gunBody) then
-		return
-	end
 
 	local spin = ensureBarrelSpinState()
 
-	local currentlyFiring = serverFireInput or autoFireEnabled
+	local gunStatus = getModuleStatus(gunBody, pitchJoint, "ciws_barrel", 5)
+	local turretStatus = getModuleStatus(turretBody, yawJoint, "ciws_turret", 10)
+	local radarStatus = getModuleStatus(gunBody, 0, "ciws_radar", 10)
+	local mountStatus = getModuleStatus(gunBody, pitchJoint, "ciws_mount", 10)
+
+	local currentlyFiring = false
+	if gunStatus ~= "Destroyed" then
+		currentlyFiring = serverFireInput or autoFireEnabled
+	end
 
 	if not serverControlActive and not autoFireEnabled then
 		local slow = jointConfig.motorSlowdownDegPerSec * dt
@@ -340,7 +374,9 @@ function server.tick(dt)
 		end
 		desiredYawStrength = jointConfig.motorStrength
 	end
-	if IsBodyBroken(baseBody) then
+	if turretStatus == "Destroyed" then
+		desiredYawVelDeg = 0.0
+	elseif turretStatus == "Damaged" then
 		desiredYawVelDeg = desiredYawVelDeg * 0.5
 	end
 	yawMotorVelDeg = desiredYawVelDeg
@@ -365,7 +401,9 @@ function server.tick(dt)
 			desiredPitchVelDeg = -jointConfig.pitchSpeedDeg
 		end
 	end
-	if IsBodyBroken(turretBody) then
+	if mountStatus == "Destroyed" then
+		desiredPitchVelDeg = 0.0
+	elseif mountStatus == "Damaged" then
 		desiredPitchVelDeg = desiredPitchVelDeg * 0.5
 	end
 	pitchMotorVelDeg = desiredPitchVelDeg
@@ -373,8 +411,12 @@ function server.tick(dt)
 
 	phalanxWeaponSpin.tickSpin(spin, dt, currentlyFiring)
 	if currentlyFiring and phalanxWeaponSpin.tryFire(spin, ciwsWeaponConfig) then
+		local currentSpread = ciwsWeaponConfig.spread
+		if gunStatus == "Damaged" then
+			currentSpread = currentSpread * 5.0
+		end
 		local muzzlePos, _ = getMuzzlePosAndDir()
-		local shootDir = VecNormalize(VecAdd(getShootDir(), rndVec(ciwsWeaponConfig.spread)))
+		local shootDir = VecNormalize(VecAdd(getShootDir(), rndVec(currentSpread)))
 		local projectilePos = VecAdd(muzzlePos, VecScale(shootDir, 0.6))
 		createProjectile(projectilePos, shootDir)
 
@@ -425,13 +467,74 @@ function client.draw(dt)
 		return
 	end
 
-	if gunBody == 0 or IsBodyBroken(gunBody) then
+	if gunBody == 0 then
 		return
 	end
-	
-	local uiStr = "Auto Fire: " .. (autoFireState.enabled and "ON" or "OFF") .. " [Press Q]"
-	SetString("hud.bottom", uiStr)
 
+	local gunStatus = getModuleStatus(gunBody, pitchJoint, "ciws_barrel", 5)
+	local turretStatus = getModuleStatus(turretBody, yawJoint, "ciws_turret", 10)
+	local radarStatus = getModuleStatus(gunBody, 0, "ciws_radar", 10)
+	local mountStatus = getModuleStatus(gunBody, pitchJoint, "ciws_mount", 10)	
+
+	UiPush()
+		UiTranslate(UiWidth() - 620, UiHeight() - 215)
+		UiAlign("left top")
+		UiColor(0.06, 0.07, 0.09, 0.78)
+		UiRect(290, 165)
+
+		UiPush()
+			UiColor(1, 1, 1, 0.3)
+			UiRect(290, 2)
+			UiRect(2, 165)
+			UiTranslate(0, 163)
+			UiRect(290, 2)
+			UiTranslate(288, -163)
+			UiRect(2, 165)
+		UiPop()
+
+		UiTranslate(20, 20)
+		UiFont("bold.ttf", 22)
+		if gunStatus == "Destroyed" or mountStatus == "Destroyed" or turretStatus == "Destroyed" then
+			UiColor(1, 0.2, 0.2, 1)
+			UiText("SYSTEM CRITICAL")
+		else
+			UiColor(1, 1, 1, 1)
+			UiText("CIWS STATUS")
+		end
+
+		UiTranslate(0, 32)
+		UiFont("regular.ttf", 18)
+		
+		local function drawStatus(label, status, yOffset)
+			UiPush()
+			UiTranslate(0, yOffset)
+			UiColor(0.8, 0.8, 0.8, 1)
+			UiText(label)
+			UiTranslate(80, 0)
+			if status == "Good" then UiColor(0.2, 0.8, 0.2, 1)
+			elseif status == "Damaged" then UiColor(1, 0.5, 0, 1)
+			else UiColor(1, 0.2, 0.2, 1) end
+			UiText(status)
+			UiPop()
+		end
+
+		drawStatus("Gun:", gunStatus, 0)
+		drawStatus("Mount:", mountStatus, 20)
+		drawStatus("Turret:", turretStatus, 40)
+		drawStatus("Radar:", radarStatus, 60)
+		
+		UiTranslate(0, 88)
+		if autoFireState.enabled then
+			UiColor(0.2, 0.8, 0.2, 1)
+		else
+			UiColor(0.8, 0.8, 0.8, 1)
+		end
+		UiText("Auto Fire [Q]: " .. (autoFireState.enabled and "ON" or "OFF"))
+	UiPop()
+
+	if gunStatus == "Destroyed" or mountStatus == "Destroyed" then
+		return
+	end
 	local muzzlePos, muzzleDir = getMuzzlePosAndDir()
 	QueryRejectBody(baseBody)
 	QueryRejectBody(turretBody)
@@ -566,8 +669,12 @@ function client.tick(dt)
 		SetCameraTransform(cameraTransform, cfg.fov)
 	end
 
+	local gunStatus = getModuleStatus(gunBody, pitchJoint, "ciws_barrel", 5)
+	local turretStatus = getModuleStatus(turretBody, yawJoint, "ciws_turret", 10)
+	local mountStatus = getModuleStatus(gunBody, pitchJoint, "ciws_mount", 10)
+
 	local yawError = getLocalYawErrorFromCamera()
-	if turretRotLoop ~= 0 and math.abs(yawError) > jointConfig.motorStopError then
+	if turretStatus ~= "Destroyed" and turretRotLoop ~= 0 and math.abs(yawError) > jointConfig.motorStopError then
 		local soundPos = cameraTransform.pos
 		if turretBody ~= 0 then
 			soundPos = GetBodyTransform(turretBody).pos
@@ -576,7 +683,7 @@ function client.tick(dt)
 	end
 
 	local firing = InputDown("vehicleraise") or InputDown("usetool") or autoFireState.enabled
-	if firing then
+	if firing and gunStatus ~= "Destroyed" and mountStatus ~= "Destroyed" then
 		phalanxWeaponAudio.playSpin(audioState, ciwsWeaponConfig, cameraTransform.pos)
 	end
 

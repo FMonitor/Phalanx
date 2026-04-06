@@ -13,7 +13,7 @@
 players = {}
 toolPhalanxConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_tool",
-	fireCooldown = 0.075,
+	fireCooldown = 0.1,
 	spread = 0.012,
 	ejectRightOffset = 0.1,
 	ejectUpOffset = -0.1,
