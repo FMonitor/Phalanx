@@ -36,10 +36,10 @@ cameraConfig = {
 jointConfig = {
 	yawOffset = -90.0,
 	yawSign = -1.0,
-	yawMaxVel = math.rad(120.0),
-	yawBrakeVelDeg =50.0,
-	yawBrakeGain = 100,
-	yawBrakeStrength = 8000.0,
+	motorStopError = 1.0,
+	motorStrength = 8000.0,
+	yawSpeedDeg = 50.0,
+	pitchSpeedDeg = 35.0,
 }
 
 function clamp(v, lo, hi)
@@ -127,23 +127,26 @@ function server.tick(dt)
 	local yawWrapped = select(1, dirToYawPitch(localYawDir))
 	local rawTarget = wrapAngle(yawWrapped * jointConfig.yawSign + jointConfig.yawOffset)
 
-	local yawMaxVel = jointConfig.yawMaxVel
-	if IsBodyBroken(baseBody) then
-		yawMaxVel = yawMaxVel * 0.5
-	end
-
 	local turretTransform = GetBodyTransform(turretBody)
 	local turretForwardWorld = TransformToParentVec(turretTransform, Vec(0, 0, 1))
 	local turretForwardLocal = TransformToLocalVec(baseTransform, turretForwardWorld)
 	local currentYaw = select(1, dirToYawPitch(turretForwardLocal))
 	currentYaw = wrapAngle(currentYaw * jointConfig.yawSign)
 	local yawError = wrapAngle(rawTarget - currentYaw)
-	local desiredVelDeg = clamp(
-		yawError * jointConfig.yawBrakeGain,
-		-jointConfig.yawBrakeVelDeg,
-		jointConfig.yawBrakeVelDeg
-	)
-	SetJointMotor(yawJoint, math.rad(desiredVelDeg), jointConfig.yawBrakeStrength)
+	local desiredVelDeg = 0.0
+	local desiredStrength = 0.0
+	if math.abs(yawError) > jointConfig.motorStopError then
+		if yawError > 0.0 then
+			desiredVelDeg = jointConfig.yawSpeedDeg
+		else
+			desiredVelDeg = -jointConfig.yawSpeedDeg
+		end
+		desiredStrength = jointConfig.motorStrength
+	end
+	if IsBodyBroken(baseBody) then
+		desiredVelDeg = desiredVelDeg * 0.5
+	end
+	SetJointMotor(yawJoint, math.rad(desiredVelDeg), desiredStrength)
 end
 
 function client.init()

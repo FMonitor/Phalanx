@@ -76,6 +76,20 @@
 - `maxVel` 是最大角速度，单位是弧度/秒
 - 适合炮塔对准目标角、舱门开合、机械臂定位
 
+### 当前项目已验证的经验
+
+- `CIWS` 的水平炮塔（yaw hinge）已经验证可以用 `SetJointMotor(...)` 做稳定跟随。
+- 这套方案适合“固定速度转向 + 到位停下”的炮塔控制。
+- 关键前提之一是：XML 里 joint 自身的 `rotstrength` 不能为 `0`。
+- 如果 `rotstrength="0"`，现象上可能会出现：
+  - 目标角和误差在变
+  - 脚本持续调用 `SetJointMotor(...)`
+  - 但模型本体不按预期响应，或只会被外力碰撞带动
+- 实践上应当把：
+  - XML 的 `rotstrength` 作为 joint 物理约束强度
+  - Lua 里的 `SetJointMotor(..., strength)` 作为电机驱动力
+  这两层分开理解和调试
+
 ### 读 joint 当前状态
 
 - `GetJointLimits(joint)`
