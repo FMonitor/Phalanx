@@ -103,10 +103,6 @@ function findMountedVehicle()
 	return v
 end
 
-function spawnProjectileTrail(pos, vel)
-	phalanxWeaponFx.spawnProjectileTrail(pos, vel)
-end
-
 function spawnProjectileGlow(pos, vel)
 	phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, vehiclePhalanxConfig)
 end
@@ -348,7 +344,6 @@ end
 function client.renderProjectileSmoke(px, py, pz, vx, vy, vz)
 	local pos = Vec(px, py, pz)
 	local vel = Vec(vx, vy, vz)
-	spawnProjectileTrail(pos, vel)
 	spawnProjectileGlow(pos, vel)
 end
 

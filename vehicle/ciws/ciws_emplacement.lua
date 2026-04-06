@@ -23,7 +23,7 @@ pitchMotorVelDeg = 0.0
 
 ciwsWeaponConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_ciws",
-	fireCooldown = 0.02,
+	fireCooldown = 0.015,
 	spread = 0.008,
 })
 
@@ -169,10 +169,6 @@ function getMuzzlePosAndDir()
 	local muzzleOffset = TransformToParentVec(gunTransform, weaponOffsets.muzzle)
 	local muzzlePos = VecAdd(gunTransform.pos, muzzleOffset)
 	return muzzlePos, VecNormalize(gunDir)
-end
-
-function spawnProjectileTrail(pos, vel)
-	phalanxWeaponFx.spawnProjectileTrail(pos, vel)
 end
 
 function spawnProjectileGlow(pos, vel)
@@ -410,7 +406,6 @@ end
 function client.renderProjectileSmoke(px, py, pz, vx, vy, vz)
 	local pos = Vec(px, py, pz)
 	local vel = Vec(vx, vy, vz)
-	spawnProjectileTrail(pos, vel)
 	spawnProjectileGlow(pos, vel)
 end
 

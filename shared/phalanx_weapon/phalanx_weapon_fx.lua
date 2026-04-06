@@ -84,16 +84,7 @@ function phalanxWeaponFx.spawnEjectedBullet(state, cfg, origin, rightDir, upDir,
 end
 
 function phalanxWeaponFx.spawnProjectileTrail(pos, vel)
-	local dir = VecNormalize(vel)
-	local v = VecScale(dir, -4) -- Trail particle initial velocity; negative means drag smoke behind the bullet.
-
-	ParticleType("smoke")
-	ParticleColor(1.0, 0.7, 0.25) -- RGB tint of the trail; warmer values look more like hot tracer smoke.
-	ParticleRadius(0.06, 0.1) -- Start/end size of each particle; larger values make the trail thicker.
-	ParticleAlpha(1, 0.0) -- Start/end opacity; controls how visible the trail is and how fast it fades.
-	ParticleDrag(0.2) -- Air resistance on particles; higher values make smoke slow down faster.
-	ParticleGravity(-0.1) -- Negative gravity makes smoke drift slightly upward.
-	SpawnParticle(pos, v, 0.2) -- Spawn one trail particle at pos, with velocity v, lifetime 1.2 seconds.
+	-- 取消烟雾拖尾效果，只保留发光的弹体
 end
 
 function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, cfg)
