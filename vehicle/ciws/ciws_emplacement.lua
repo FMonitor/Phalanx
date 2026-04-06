@@ -15,6 +15,8 @@ debugPitchTarget = 0.0
 debugPitchCurrent = 0.0
 debugPitchError = 0.0
 debugPitchVelDeg = 0.0
+yawMotorVelDeg = 0.0
+pitchMotorVelDeg = 0.0
 
 cameraState = {
 	initialized = false,
@@ -47,6 +49,7 @@ jointConfig = {
 	motorStrength = 10000.0,
 	yawSpeedDeg = 50.0,
 	pitchSpeedDeg = 35.0,
+	motorSlowdownDegPerSec = 120.0,
 }
 
 function clamp(v, lo, hi)
@@ -67,6 +70,16 @@ end
 
 function lerp(a, b, t)
 	return a + (b - a) * t
+end
+
+function moveTowards(current, target, maxDelta)
+	if current < target then
+		return math.min(current + maxDelta, target)
+	end
+	if current > target then
+		return math.max(current - maxDelta, target)
+	end
+	return target
 end
 
 function dirToYawPitch(dir)
@@ -90,6 +103,15 @@ end
 function dirToPitchFromX(dir)
 	local d = VecNormalize(dir)
 	return math.deg(math.atan2(d[2], d[1]))
+end
+
+function getGunMountedTransform(localPos, localRot)
+	if gunBody == 0 then
+		return nil
+	end
+	local gunTransform = GetBodyTransform(gunBody)
+	local localTransform = Transform(localPos, localRot or Quat())
+	return TransformToParentTransform(gunTransform, localTransform)
 end
 
 function findMountedVehicle()
@@ -132,6 +154,11 @@ function server.tick(dt)
 	end
 
 	if not serverControlActive then
+		local slow = jointConfig.motorSlowdownDegPerSec * dt
+		yawMotorVelDeg = moveTowards(yawMotorVelDeg, 0.0, slow)
+		pitchMotorVelDeg = moveTowards(pitchMotorVelDeg, 0.0, slow)
+		SetJointMotor(yawJoint, math.rad(yawMotorVelDeg), jointConfig.motorStrength)
+		SetJointMotor(pitchJoint, math.rad(pitchMotorVelDeg), jointConfig.motorStrength)
 		DebugWatch("CIWS SRV PitchState", "inactive")
 		return
 	end
@@ -163,7 +190,8 @@ function server.tick(dt)
 	if IsBodyBroken(baseBody) then
 		desiredVelDeg = desiredVelDeg * 0.5
 	end
-	SetJointMotor(yawJoint, math.rad(desiredVelDeg), desiredStrength)
+	yawMotorVelDeg = desiredVelDeg
+	SetJointMotor(yawJoint, math.rad(yawMotorVelDeg), desiredStrength)
 
 	local turretAimDir = TransformToLocalVec(turretTransform, aimDir)
 	local rawPitchTarget = dirToPitchFromX(turretAimDir)
@@ -191,7 +219,8 @@ function server.tick(dt)
 		desiredPitchVelDeg = desiredPitchVelDeg * 0.5
 	end
 	debugPitchVelDeg = desiredPitchVelDeg
-	SetJointMotor(pitchJoint, math.rad(desiredPitchVelDeg), desiredPitchStrength)
+	pitchMotorVelDeg = desiredPitchVelDeg
+	SetJointMotor(pitchJoint, math.rad(pitchMotorVelDeg), desiredPitchStrength)
 
 	DebugWatch("CIWS SRV PitchState", "active")
 	DebugWatch("CIWS SRV PitchTarget", string.format("%.1f", debugPitchTarget))
@@ -225,7 +254,7 @@ function client.tick(dt)
 	SetPlayerHidden()
 
 	local cfg = cameraConfig
-	local pivot = GetVehicleLocationWorldTransform(vehicle, "camera")
+	local pivot = getGunMountedTransform(Vec(0.0, 2.9, -0.2))
 	if pivot == nil then
 		pivot = GetBodyTransform(baseBody)
 	end
@@ -273,7 +302,7 @@ function client.tick(dt)
 	end
 
 	if useFirstPerson then
-		local fpPivot = GetVehicleLocationWorldTransform(vehicle, "player")
+		local fpPivot = getGunMountedTransform(Vec(0.8, 0.7, -0.05), QuatEuler(0.0, 180.0, 0.0))
 		if fpPivot == nil then
 			fpPivot = pivot
 		end
@@ -308,10 +337,15 @@ function client.tick(dt)
 		cameraTransform = Transform(camPos, QuatLookAt(camPos, target))
 	end
 
-	if baseBody ~= 0 then
-		local baseTransform = GetBodyTransform(baseBody)
-		local cameraLocalTransform = TransformToLocalTransform(baseTransform, cameraTransform)
-		AttachCameraTo(baseBody, false)
+	local cameraAttachBody = gunBody
+	if cameraAttachBody == 0 then
+		cameraAttachBody = baseBody
+	end
+
+	if cameraAttachBody ~= 0 then
+		local attachTransform = GetBodyTransform(cameraAttachBody)
+		local cameraLocalTransform = TransformToLocalTransform(attachTransform, cameraTransform)
+		AttachCameraTo(cameraAttachBody, false)
 		SetCameraOffsetTransform(cameraLocalTransform)
 	else
 		SetCameraTransform(cameraTransform, cfg.fov)

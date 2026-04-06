@@ -89,6 +89,12 @@
   - XML 的 `rotstrength` 作为 joint 物理约束强度
   - Lua 里的 `SetJointMotor(..., strength)` 作为电机驱动力
   这两层分开理解和调试
+- `CIWS` 的 pitch 也已经验证可以沿用同样的 motor 控制结构。
+- 对 pitch 限位，更推荐直接使用 XML 里 hinge joint 的 `limits`：
+  - 例如 `ciws_pitch` 的 `limits="-85 15"`
+  - Lua 里不必再额外做一层 `pitchMin/pitchMax` 夹取
+- 原因是双重限位容易让“模型实际关节范围”和“脚本目标角范围”不一致，增加调试复杂度。
+- 当前项目里，移除 Lua 的 pitch 角度夹取后，交由 XML `limits` 单独控制，俯仰行为已验证正常。
 
 ### 读 joint 当前状态
 
