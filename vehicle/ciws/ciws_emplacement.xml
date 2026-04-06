@@ -19,7 +19,7 @@
 				</body>
 			</body>
 			<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-				<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>1
+				<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
 			</rig>
 		</vehicle>
 	</script>

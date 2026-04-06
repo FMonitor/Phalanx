@@ -1,6 +1,11 @@
 #version 2
 
 #include "script/include/player.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_config.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_projectile.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_fx.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_spin.lua"
+#include "../../shared/phalanx_weapon/phalanx_weapon_audio.lua"
 
 vehicle = 0
 baseBody = 0
@@ -11,14 +16,19 @@ pitchJoint = 0
 
 cameraTransform = Transform()
 serverControlActive = false
-debugPitchTarget = 0.0
-debugPitchCurrent = 0.0
-debugPitchError = 0.0
-debugPitchVelDeg = 0.0
-turretRotLoop = 0
-turretRotVolume = 1.5
+serverFireInput = false
+autoFireEnabled = false
 yawMotorVelDeg = 0.0
 pitchMotorVelDeg = 0.0
+
+ciwsWeaponConfig = phalanxWeaponMakeConfig({
+	name = "phalanx_ciws",
+	fireCooldown = 0.02,
+	spread = 0.008,
+})
+
+weaponState = phalanxWeaponProjectile.createState()
+ciwsFxState = phalanxWeaponFx.createState()
 
 cameraState = {
 	initialized = false,
@@ -36,10 +46,10 @@ cameraConfig = {
 	distMax = 14.0,
 	firstPersonThreshold = 0.65,
 	pitchMin = -89.0,
-	pitchMax = 89.0,
+	pitchMax = 85.0,
 	radius = 0.25,
 	smooth = 10.0,
-	fov = 110,
+	fov = 120,
 }
 
 jointConfig = {
@@ -49,10 +59,25 @@ jointConfig = {
 	pitchSign = -1.0,
 	motorStopError = 1.0,
 	motorStrength = 10000.0,
-	yawSpeedDeg = 50.0,
-	pitchSpeedDeg = 35.0,
-	motorSlowdownDegPerSec = 120.0,
+	yawSpeedDeg = 90.0,
+	pitchSpeedDeg = 90.0,
+	motorSlowdownDegPerSec = 40.0,
 }
+
+-- x轴(第一个数字)为前后，正数往前延伸
+-- y轴(第二个数字)为上下，正数向上走
+-- z轴(第三个数字)为左右，正数向右偏移
+weaponOffsets = {
+	muzzle = Vec(3, 0, -0.05),    -- 【枪口开火生成点】（即火光和子弹起点）
+	spinPivot = Vec(0.0, 0.35, 0.35) -- 【枪管旋转轴圆心】
+}
+
+barrelSpinState = nil
+turretRotLoop = 0
+turretRotVolume = 1.5
+audioState = nil
+shootHaptic = 0
+reticle = 0
 
 function clamp(v, lo, hi)
 	if v < lo then return lo end
@@ -107,7 +132,105 @@ function dirToPitchFromX(dir)
 	return math.deg(math.atan2(d[2], d[1]))
 end
 
-function getLocalYawError()
+function dirToElevation(dir)
+	local d = VecNormalize(dir)
+	local horizontal = math.sqrt(d[1] * d[1] + d[3] * d[3])
+	return math.deg(math.atan2(d[2], horizontal))
+end
+
+function findMountedVehicle()
+	local v = FindVehicle()
+	if v == 0 then
+		v = FindVehicle("ciws_emplacement")
+	end
+	return v
+end
+
+function rndVec(length)
+	local v = VecNormalize(Vec(math.random(-100, 100), math.random(-100, 100), math.random(-100, 100)))
+	return VecScale(v, length)
+end
+
+function getGunMountedTransform(localPos, localRot)
+	if gunBody == 0 then
+		return nil
+	end
+	local gunTransform = GetBodyTransform(gunBody)
+	local localTransform = Transform(localPos, localRot or Quat())
+	return TransformToParentTransform(gunTransform, localTransform)
+end
+
+function getMuzzlePosAndDir()
+	if gunBody == 0 then
+		return Vec(), Vec(1, 0, 0)
+	end
+	local gunTransform = GetBodyTransform(gunBody)
+	local gunDir = TransformToParentVec(gunTransform, Vec(1, 0, 0))
+	local muzzleOffset = TransformToParentVec(gunTransform, weaponOffsets.muzzle)
+	local muzzlePos = VecAdd(gunTransform.pos, muzzleOffset)
+	return muzzlePos, VecNormalize(gunDir)
+end
+
+function spawnProjectileTrail(pos, vel)
+	phalanxWeaponFx.spawnProjectileTrail(pos, vel)
+end
+
+function spawnProjectileGlow(pos, vel)
+	phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, ciwsWeaponConfig)
+end
+
+function createProjectile(pos, dir)
+	phalanxWeaponProjectile.add(weaponState, ciwsWeaponConfig, pos, dir, 0)
+end
+
+function tickProjectiles(dt)
+	phalanxWeaponProjectile.tick(weaponState, ciwsWeaponConfig, dt, "client.renderProjectileSmoke")
+end
+
+function ensureBarrelSpinState()
+	barrelSpinState = barrelSpinState or phalanxWeaponSpin.createState()
+	barrelSpinState.launcherShape = barrelSpinState.launcherShape or 0
+	barrelSpinState.launcherLocalTransform = barrelSpinState.launcherLocalTransform or nil
+
+	if barrelSpinState.launcherShape == 0 and gunBody ~= 0 then
+		local shapes = GetBodyShapes(gunBody)
+		if shapes ~= nil then
+			for i = 1, #shapes do
+				if HasTag(shapes[i], "ciws_barrel") then
+					barrelSpinState.launcherShape = shapes[i]
+					break
+				end
+			end
+			if barrelSpinState.launcherShape ~= 0 then
+				barrelSpinState.launcherLocalTransform = GetShapeLocalTransform(barrelSpinState.launcherShape)
+			end
+		end
+	end
+
+	return barrelSpinState
+end
+
+function animateBarrelSpin()
+	local spin = ensureBarrelSpinState()
+	if spin.launcherShape == 0 or spin.launcherLocalTransform == nil then
+		return
+	end
+
+	local base = Transform(
+		VecCopy(spin.launcherLocalTransform.pos),
+		QuatCopy(spin.launcherLocalTransform.rot)
+	)
+	local pivot = weaponOffsets.spinPivot
+	local pivotT = Transform(VecCopy(pivot))
+	local unpivotT = Transform(VecScale(pivot, -1))
+	local spinT = Transform(Vec(), QuatEuler(spin.angle, 0, 0))
+	local t = TransformToParentTransform(pivotT, spinT)
+	t = TransformToParentTransform(t, unpivotT)
+	t = TransformToParentTransform(base, t)
+	SetShapeLocalTransform(spin.launcherShape, t)
+end
+
+function getLocalYawErrorFromCamera()
 	if baseBody == 0 or turretBody == 0 then
 		return 0.0
 	end
@@ -129,21 +252,20 @@ function getLocalYawError()
 	return wrapAngle(rawTarget - currentYaw)
 end
 
-function getGunMountedTransform(localPos, localRot)
+function getShootDir()
+	local muzzlePos, fallbackDir = getMuzzlePosAndDir()
 	if gunBody == 0 then
-		return nil
+		return fallbackDir
 	end
-	local gunTransform = GetBodyTransform(gunBody)
-	local localTransform = Transform(localPos, localRot or Quat())
-	return TransformToParentTransform(gunTransform, localTransform)
-end
 
-function findMountedVehicle()
-	local v = FindVehicle()
-	if v == 0 then
-		v = FindVehicle("ciws_emplacement")
+	local gunTransform = GetBodyTransform(gunBody)
+	local gunDir = TransformToParentVec(gunTransform, Vec(1, 0, 0))
+	local rayHit, rayDist = QueryRaycast(cameraTransform.pos, TransformToParentVec(cameraTransform, Vec(0, 0, -1)), 500)
+	if rayHit then
+		local hitPos = VecAdd(cameraTransform.pos, VecScale(TransformToParentVec(cameraTransform, Vec(0, 0, -1)), rayDist))
+		return VecNormalize(VecSub(hitPos, muzzlePos))
 	end
-	return v
+	return VecNormalize(gunDir)
 end
 
 function server.init()
@@ -153,37 +275,47 @@ function server.init()
 	gunBody = FindBody("gun")
 	yawJoint = FindJoint("ciws_yaw")
 	pitchJoint = FindJoint("ciws_pitch")
+	ensureBarrelSpinState()
 end
 
 function server.setCameraTransform(t)
 	cameraTransform = t
 end
 
-function server.setControlActive(active, controlledVehicle, controlledBody)
-	serverControlActive = active
+function server.setControlState(active, firing)
+	serverControlActive = active == true
+	serverFireInput = firing == true
+end
+
+function server.setAutoFire(enabled)
+	autoFireEnabled = enabled == true
 end
 
 function server.tick(dt)
+	tickProjectiles(dt)
+
 	if vehicle == 0 or baseBody == 0 or turretBody == 0 or gunBody == 0 then
-		DebugWatch("CIWS SRV PitchState", "missing_handles")
 		return
 	end
 	if yawJoint == 0 or pitchJoint == 0 then
-		DebugWatch("CIWS SRV PitchState", "missing_joint")
 		return
 	end
 	if IsBodyBroken(turretBody) or IsBodyBroken(gunBody) then
-		DebugWatch("CIWS SRV PitchState", "broken")
 		return
 	end
 
-	if not serverControlActive then
+	local spin = ensureBarrelSpinState()
+
+	local currentlyFiring = serverFireInput or autoFireEnabled
+
+	if not serverControlActive and not autoFireEnabled then
 		local slow = jointConfig.motorSlowdownDegPerSec * dt
 		yawMotorVelDeg = moveTowards(yawMotorVelDeg, 0.0, slow)
 		pitchMotorVelDeg = moveTowards(pitchMotorVelDeg, 0.0, slow)
 		SetJointMotor(yawJoint, math.rad(yawMotorVelDeg), jointConfig.motorStrength)
 		SetJointMotor(pitchJoint, math.rad(pitchMotorVelDeg), jointConfig.motorStrength)
-		DebugWatch("CIWS SRV PitchState", "inactive")
+		phalanxWeaponSpin.tickSpin(spin, dt, currentlyFiring)
+		animateBarrelSpin()
 		return
 	end
 
@@ -193,43 +325,41 @@ function server.tick(dt)
 	local baseTransform = GetBodyTransform(baseBody)
 	local localYawDir = TransformToLocalVec(baseTransform, aimDir)
 	local yawWrapped = select(1, dirToYawPitch(localYawDir))
-	local rawTarget = wrapAngle(yawWrapped * jointConfig.yawSign + jointConfig.yawOffset)
+	local rawYawTarget = wrapAngle(yawWrapped * jointConfig.yawSign + jointConfig.yawOffset)
 
 	local turretTransform = GetBodyTransform(turretBody)
 	local turretForwardWorld = TransformToParentVec(turretTransform, Vec(0, 0, 1))
 	local turretForwardLocal = TransformToLocalVec(baseTransform, turretForwardWorld)
 	local currentYaw = select(1, dirToYawPitch(turretForwardLocal))
 	currentYaw = wrapAngle(currentYaw * jointConfig.yawSign)
-	local yawError = wrapAngle(rawTarget - currentYaw)
-	local desiredVelDeg = 0.0
-	local desiredStrength = 0.0
+	local yawError = wrapAngle(rawYawTarget - currentYaw)
+
+	local desiredYawVelDeg = 0.0
+	local desiredYawStrength = 0.0
 	if math.abs(yawError) > jointConfig.motorStopError then
 		if yawError > 0.0 then
-			desiredVelDeg = jointConfig.yawSpeedDeg
+			desiredYawVelDeg = jointConfig.yawSpeedDeg
 		else
-			desiredVelDeg = -jointConfig.yawSpeedDeg
+			desiredYawVelDeg = -jointConfig.yawSpeedDeg
 		end
-		desiredStrength = jointConfig.motorStrength
+		desiredYawStrength = jointConfig.motorStrength
 	end
 	if IsBodyBroken(baseBody) then
-		desiredVelDeg = desiredVelDeg * 0.5
+		desiredYawVelDeg = desiredYawVelDeg * 0.5
 	end
-	yawMotorVelDeg = desiredVelDeg
-	SetJointMotor(yawJoint, math.rad(yawMotorVelDeg), desiredStrength)
+	yawMotorVelDeg = desiredYawVelDeg
+	SetJointMotor(yawJoint, math.rad(yawMotorVelDeg), desiredYawStrength)
 
-	local turretAimDir = TransformToLocalVec(turretTransform, aimDir)
-	local rawPitchTarget = dirToPitchFromX(turretAimDir)
+	local rawPitchTarget = dirToElevation(localYawDir)
 	rawPitchTarget = wrapAngle(rawPitchTarget * jointConfig.pitchSign + jointConfig.pitchOffset)
-	debugPitchTarget = rawPitchTarget
 
 	local gunTransform = GetBodyTransform(gunBody)
 	local gunForwardWorld = TransformToParentVec(gunTransform, Vec(1, 0, 0))
 	local gunForwardLocal = TransformToLocalVec(turretTransform, gunForwardWorld)
 	local currentPitch = dirToPitchFromX(gunForwardLocal)
 	currentPitch = wrapAngle(currentPitch * jointConfig.pitchSign)
-	debugPitchCurrent = currentPitch
 	local pitchError = wrapAngle(rawPitchTarget - currentPitch)
-	debugPitchError = pitchError
+
 	local desiredPitchVelDeg = 0.0
 	local desiredPitchStrength = jointConfig.motorStrength
 	if math.abs(pitchError) > jointConfig.motorStopError then
@@ -242,15 +372,20 @@ function server.tick(dt)
 	if IsBodyBroken(turretBody) then
 		desiredPitchVelDeg = desiredPitchVelDeg * 0.5
 	end
-	debugPitchVelDeg = desiredPitchVelDeg
 	pitchMotorVelDeg = desiredPitchVelDeg
 	SetJointMotor(pitchJoint, math.rad(pitchMotorVelDeg), desiredPitchStrength)
 
-	DebugWatch("CIWS SRV PitchState", "active")
-	DebugWatch("CIWS SRV PitchTarget", string.format("%.1f", debugPitchTarget))
-	DebugWatch("CIWS SRV PitchCurrent", string.format("%.1f", debugPitchCurrent))
-	DebugWatch("CIWS SRV PitchError", string.format("%.1f", debugPitchError))
-	DebugWatch("CIWS SRV PitchVel", string.format("%.1f", debugPitchVelDeg))
+	phalanxWeaponSpin.tickSpin(spin, dt, currentlyFiring)
+	if currentlyFiring and phalanxWeaponSpin.tryFire(spin, ciwsWeaponConfig) then
+		local muzzlePos, _ = getMuzzlePosAndDir()
+		local shootDir = VecNormalize(VecAdd(getShootDir(), rndVec(ciwsWeaponConfig.spread)))
+		local projectilePos = VecAdd(muzzlePos, VecScale(shootDir, 0.6))
+		createProjectile(projectilePos, shootDir)
+
+		ClientCall(0, "client.playGunShot", muzzlePos[1], muzzlePos[2], muzzlePos[3])
+	end
+
+	animateBarrelSpin()
 end
 
 function client.init()
@@ -258,9 +393,63 @@ function client.init()
 	baseBody = FindBody("base")
 	turretBody = FindBody("turret")
 	gunBody = FindBody("gun")
+	yawJoint = FindJoint("ciws_yaw")
 	pitchJoint = FindJoint("ciws_pitch")
 	cameraState.initialized = false
+	audioState = phalanxWeaponAudio.loadState()
 	turretRotLoop = LoadLoop("MOD/snd/turret-rot.ogg")
+	shootHaptic = LoadHaptic("MOD/haptic/gun_fire.xml")
+	reticle = LoadSprite("gfx/reticle4.png")
+	
+	autoFireState = {
+		enabled = false,
+		synced = true,
+	}
+end
+
+function client.renderProjectileSmoke(px, py, pz, vx, vy, vz)
+	local pos = Vec(px, py, pz)
+	local vel = Vec(vx, vy, vz)
+	spawnProjectileTrail(pos, vel)
+	spawnProjectileGlow(pos, vel)
+end
+
+function client.playGunShot(px, py, pz)
+	local pos = Vec(px, py, pz)
+	if cameraTransform ~= nil and cameraTransform.pos ~= nil then
+		pos = cameraTransform.pos
+	end
+	phalanxWeaponAudio.playShot(audioState, ciwsWeaponConfig, pos)
+	if shootHaptic ~= 0 then
+		PlayHaptic(shootHaptic, 1)
+	end
+end
+
+function client.draw(dt)
+	if GetPlayerVehicle() ~= vehicle or GetString("level.state") ~= "" then
+		return
+	end
+
+	if gunBody == 0 or IsBodyBroken(gunBody) then
+		return
+	end
+	
+	local uiStr = "Auto Fire: " .. (autoFireState.enabled and "ON" or "OFF") .. " [Press Q]"
+	SetString("hud.bottom", uiStr)
+
+	local muzzlePos, muzzleDir = getMuzzlePosAndDir()
+	QueryRejectBody(baseBody)
+	QueryRejectBody(turretBody)
+	QueryRejectBody(gunBody)
+	local hit, dist = QueryRaycast(muzzlePos, muzzleDir, 500)
+	if hit and reticle ~= 0 then
+		local hitPos = VecAdd(muzzlePos, VecScale(muzzleDir, dist))
+		local t = Transform()
+		t.pos = hitPos
+		t.rot = QuatLookAt(t.pos, cameraTransform.pos)
+		DrawSprite(reticle, t, 2.5, 1.2, 0.5, 0, 0, 1, false, false)
+		DrawSprite(reticle, t, 2.5, 1.2, 0.5, 0, 0, 1, true, false)
+	end
 end
 
 function client.tick(dt)
@@ -272,8 +461,17 @@ function client.tick(dt)
 
 	if currentVehicle == 0 or currentVehicleBody ~= baseBody then
 		cameraState.initialized = false
-		ServerCall("server.setControlActive", false, currentVehicle, currentVehicleBody)
+		ServerCall("server.setControlState", false, false)
 		return
+	end
+
+	if InputPressed("q") then
+		autoFireState.enabled = not autoFireState.enabled
+		autoFireState.synced = false
+	end
+	if not autoFireState.synced then
+		ServerCall("server.setAutoFire", autoFireState.enabled)
+		autoFireState.synced = true
 	end
 
 	SetPlayerHidden()
@@ -291,14 +489,12 @@ function client.tick(dt)
 		local yaw, pitch = dirToYawPitch(currentForward)
 		cameraState.yaw = yaw
 		cameraState.pitch = pitch
-
 		local toCam = VecSub(currentCamera.pos, pivot.pos)
 		local dist = VecLength(toCam)
 		if dist > 0.1 then
 			cameraState.distance = clamp(dist, cfg.distMin, cfg.distMax)
 			cameraState.targetDistance = cameraState.distance
 		end
-
 		cameraState.initialized = true
 	end
 
@@ -358,7 +554,6 @@ function client.tick(dt)
 				camPos = VecAdd(pivot.pos, VecScale(toCameraDir, safeDist))
 			end
 		end
-
 		cameraTransform = Transform(camPos, QuatLookAt(camPos, target))
 	end
 
@@ -376,12 +571,20 @@ function client.tick(dt)
 		SetCameraTransform(cameraTransform, cfg.fov)
 	end
 
-	local yawError = getLocalYawError()
-	if turretRotLoop ~= 0 and math.abs(yawError) > jointConfig.motorStopError*10 then
-		local soundPos = GetBodyTransform(turretBody).pos
+	local yawError = getLocalYawErrorFromCamera()
+	if turretRotLoop ~= 0 and math.abs(yawError) > jointConfig.motorStopError then
+		local soundPos = cameraTransform.pos
+		if turretBody ~= 0 then
+			soundPos = GetBodyTransform(turretBody).pos
+		end
 		PlayLoop(turretRotLoop, soundPos, turretRotVolume)
 	end
 
-	ServerCall("server.setControlActive", true, currentVehicle, currentVehicleBody)
+	local firing = InputDown("vehicleraise") or InputDown("usetool") or autoFireState.enabled
+	if firing then
+		phalanxWeaponAudio.playSpin(audioState, ciwsWeaponConfig, cameraTransform.pos)
+	end
+
+	ServerCall("server.setControlState", true, firing)
 	ServerCall("server.setCameraTransform", cameraTransform)
 end
