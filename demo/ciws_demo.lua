@@ -12,26 +12,57 @@ raidConfig = {
 
 raidState = {
 	buttonShape = 0,
+	buttonLight = 0,
 	spawnLocations = {},
 	activeDroneBodies = {},
 	spawnCursor = 1,
 	lastSpawnTime = -100.0,
 	autoSpawnActive = false,
+	pendingSpawns = 0,
+	pressFeedbackUntil = 0.0,
 }
 
 spawnConfig = {
 	manualSpawnCooldown = 1.0,
 }
 
+buttonVisuals = {
+	idleEmissive = 0.0,
+	hoverEmissive = 0.8,
+	activeEmissive = 1.6,
+	idleColor = {1.0, 0.20, 0.12},
+	hoverColor = {1.0, 0.72, 0.18},
+	activeColor = {0.18, 0.72, 1.0},
+}
+
 DebugPrint("CIWS demo script parsed")
 
 function init()
 	raidState.buttonShape = FindShape("raid_button", true)
+	if raidState.buttonShape == 0 then
+		raidState.buttonShape = FindShape("raid_button")
+	end
+	raidState.buttonLight = FindLight("raid_button_light", true)
+	if raidState.buttonLight == 0 then
+		raidState.buttonLight = FindLight("raid_button_light")
+	end
 	raidState.spawnLocations = FindLocations("phalanx_drone_spawn", true) or {}
 	raidState.activeDroneBodies = {}
 	raidState.spawnCursor = 1
 	raidState.lastSpawnTime = -100.0
+	raidState.pendingSpawns = 0
+	raidState.pressFeedbackUntil = 0.0
 	SetBool(raidConfig.activationFlag, false)
+	if raidState.buttonShape ~= 0 then
+		SetTag(raidState.buttonShape, "interact", "Spawn drone wave")
+		SetShapeEmissiveScale(raidState.buttonShape, buttonVisuals.idleEmissive)
+	end
+	if raidState.buttonLight ~= 0 then
+		SetLightEnabled(raidState.buttonLight, true)
+		SetLightColor(raidState.buttonLight, buttonVisuals.idleColor[1], buttonVisuals.idleColor[2], buttonVisuals.idleColor[3])
+	end
+	raidState.buttonOnSound = LoadSound("screen-on.ogg")
+	raidState.buttonOffSound = LoadSound("screen-off.ogg")
 	DebugPrint("CIWS demo init: button=" .. tostring(raidState.buttonShape) .. " spawns=" .. tostring(#raidState.spawnLocations))
 end
 
@@ -142,23 +173,64 @@ function spawnSingleDrone()
 	end
 end
 
+function isRaidButtonPressed()
+	return raidState.buttonShape ~= 0
+		and GetPlayerInteractShape() == raidState.buttonShape
+		and InputPressed("interact")
+end
+
+function setButtonVisuals(isHovered, isActive)
+	if raidState.buttonShape ~= 0 then
+		local emissive = buttonVisuals.idleEmissive
+		if isActive then
+			emissive = buttonVisuals.activeEmissive
+		elseif isHovered then
+			emissive = buttonVisuals.hoverEmissive
+		end
+		SetShapeEmissiveScale(raidState.buttonShape, emissive)
+	end
+
+	if raidState.buttonLight ~= 0 then
+		local color = buttonVisuals.idleColor
+		if isActive then
+			color = buttonVisuals.activeColor
+		elseif isHovered then
+			color = buttonVisuals.hoverColor
+		end
+		SetLightColor(raidState.buttonLight, color[1], color[2], color[3])
+	end
+end
+
 function tick(dt)
 	compactActiveDrones()
-	local interactShape = GetPlayerInteractShape()
-	local buttonHovered = interactShape ~= 0 and HasTag(interactShape, "raid_button")
+	local buttonHovered = raidState.buttonShape ~= 0 and GetPlayerInteractShape() == raidState.buttonShape
 	local liveTargets = hasLiveAiTargets()
 	SetBool(raidConfig.activationFlag, liveTargets)
 
 	DebugWatch("CIWS Demo", "button=" .. tostring(raidState.buttonShape) .. " hover=" .. tostring(buttonHovered) .. " targets=" .. tostring(#raidState.activeDroneBodies) .. " next=" .. tostring(raidState.spawnCursor))
 
-	if buttonHovered and InputPressed("interact") then
-		raidState.autoSpawnActive = not raidState.autoSpawnActive
-		DebugPrint("CIWS Demo toggled: auto spawn is now " .. tostring(raidState.autoSpawnActive))
+	if raidState.buttonShape ~= 0 then
+		SetTag(raidState.buttonShape, "interact", "Spawn drone wave")
 	end
-	
-	if raidState.autoSpawnActive then
+
+	if isRaidButtonPressed() then
+		raidState.pendingSpawns = 6
+		raidState.pressFeedbackUntil = GetTime() + 0.35
+		if raidState.buttonOnSound ~= nil then
+			PlaySound(raidState.buttonOnSound, GetShapeWorldTransform(raidState.buttonShape).pos)
+		end
+		DebugPrint("CIWS Demo: Spawning 6 drones wave")
+	end
+
+	if raidState.pendingSpawns > 0 then
 		if GetTime() > raidState.lastSpawnTime + spawnConfig.manualSpawnCooldown then
 			spawnSingleDrone()
+			raidState.pendingSpawns = raidState.pendingSpawns - 1
+			if raidState.pendingSpawns == 0 and raidState.buttonOffSound ~= nil and raidState.buttonShape ~= 0 then
+				PlaySound(raidState.buttonOffSound, GetShapeWorldTransform(raidState.buttonShape).pos)
+			end
 		end
 	end
+
+	setButtonVisuals(buttonHovered, raidState.pendingSpawns > 0 or GetTime() < raidState.pressFeedbackUntil)
 end

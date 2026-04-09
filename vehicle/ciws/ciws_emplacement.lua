@@ -31,8 +31,8 @@ pitchMotorVelDeg = 0.0
 
 ciwsWeaponConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_ciws",
-	fireCooldown = 0.1,
-	spread = 0.008,
+	fireCooldown = 0.025,
+	spread = 0.01,
 })
 
 weaponState = phalanxWeaponProjectile.createState()
@@ -108,11 +108,19 @@ aiConfig = {
 }
 
 local cachedModuleShapes = {}
+local cachedModuleStatus = {}
+local statusTimer = 0.0
+
 function getModuleStatus(moduleBody, moduleJoint, moduleShapeTag, minVoxels)
 	if moduleBody == 0 or not IsHandleValid(moduleBody) then return "Destroyed" end
 	if moduleJoint ~= 0 and (not IsHandleValid(moduleJoint) or IsJointBroken(moduleJoint)) then return "Destroyed" end
 
 	if moduleShapeTag and moduleShapeTag ~= "" then
+		local cacheKey = moduleBody .. "_" .. moduleShapeTag
+		if cachedModuleStatus[cacheKey] and cachedModuleStatus[cacheKey].time > GetTime() - 1 then
+			return cachedModuleStatus[cacheKey].status
+		end
+
 		local shape = cachedModuleShapes[moduleShapeTag]
 		if not shape or not IsHandleValid(shape) then
 			local shapes = GetBodyShapes(moduleBody)
@@ -127,12 +135,15 @@ function getModuleStatus(moduleBody, moduleJoint, moduleShapeTag, minVoxels)
 			end
 		end
 
+		local status = "Destroyed"
 		if shape ~= nil and IsHandleValid(shape) then
 			if GetShapeVoxelCount(shape) >= minVoxels then
-				if IsShapeBroken(shape) then return "Damaged" else return "Good" end
+				if IsShapeBroken(shape) then status = "Damaged" else status = "Good" end
 			end
 		end
-		return "Destroyed"
+		
+		cachedModuleStatus[cacheKey] = { status = status, time = GetTime() }
+		return status
 	end
 	if IsBodyBroken(moduleBody) then return "Damaged" end
 	return "Good"
@@ -520,25 +531,30 @@ function updateAiTracking(dt)
 	local hasTarget = false
 
 	if isAiTargetValid(ciwsMode.targetBody) then
-		local point = getAiTargetPoint(ciwsMode.targetBody, muzzlePos)
-		local dist = VecLength(VecSub(point, muzzlePos))
-				if point[2] < muzzlePos[2] - 1.0 then dist = aiConfig.maxRange + 10.0 end
-		
-		ciwsMode.losTimer = (ciwsMode.losTimer or 0.0) - dt
-		if ciwsMode.losTimer <= 0.0 then
-			ciwsMode.hasLos = canAiSeePoint(muzzlePos, point, ciwsMode.targetBody)
-			ciwsMode.losTimer = 0.2
-		end
+		ciwsMode.trackUpdateTimer = (ciwsMode.trackUpdateTimer or 0.0) - dt
 
-		if dist <= aiConfig.maxRange and ciwsMode.hasLos then
-			ciwsMode.targetPoint = point
-			hasTarget = true
+		if ciwsMode.trackUpdateTimer <= 0.0 then
+			local point = getAiTargetPoint(ciwsMode.targetBody, muzzlePos)
+			local dist = VecLength(VecSub(point, muzzlePos))
+			if point[2] < muzzlePos[2] - 1.0 then dist = aiConfig.maxRange + 10.0 end
+			
+			ciwsMode.hasLos = canAiSeePoint(muzzlePos, point, ciwsMode.targetBody)
+			
+			if dist <= aiConfig.maxRange and ciwsMode.hasLos then
+				ciwsMode.targetPoint = point
+				hasTarget = true
+				ciwsMode.lastValidTarget = true
+			else
+				ciwsMode.targetBody = 0
+				ciwsMode.hasLos = nil
+				ciwsMode.lastValidTarget = false
+			end
+			-- Update interval: 10Hz to save performance since servo smoothing handles the rest
+			ciwsMode.trackUpdateTimer = 0.3
 		else
-			ciwsMode.targetBody = 0
-			ciwsMode.hasLos = nil
+			hasTarget = ciwsMode.lastValidTarget
 		end
 	end
-
 	ciwsMode.scanTimer = ciwsMode.scanTimer - dt
 	if ciwsMode.scanTimer <= 0.0 then
 		ciwsMode.scanTimer = aiConfig.scanInterval

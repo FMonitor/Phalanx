@@ -100,7 +100,7 @@ function server.init()
 
 	if droneBody ~= 0 then
 		local t = GetBodyTransform(droneBody)
-		droneState.baseForward = VecNormalize(TransformToParentVec(t, Vec(0, 0, 1)))
+		droneState.baseForward = VecNormalize(TransformToParentVec(t, Vec(0, 0, -1)))
 		droneState.baseForward[2] = droneState.baseForward[2] * 0.15
 		droneState.baseForward = VecNormalize(droneState.baseForward)
 		droneState.cruiseHeight = t.pos[2]

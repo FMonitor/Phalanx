@@ -2,17 +2,19 @@
 	<environment template="night" skybox="night.dds.tde" skyboxtint="1.0 1.0 1.0" skyboxbrightness="0.005" skyboxrot="45" ambient="0.1" ambientexponent="1.0" fogType="classic" fogColor="0.01 0.01 0.01" fogParams="100 200 1 8" sunColorTint="1.0 1.0 1.0"/>
 	<script file="main.lua"/>
 	<script file="sandbox.lua"/>
-	<script file="demo/ciws_demo.lua"/>
 	<spawnpoint pos="-46.4 23.2 34.4" rot="0 180 0"/>
-	<body pos="-47.4 2.0 19.5">
-		<voxbox tags="raid_button interact=Spawn test drone" pos="-6.4 20.95 29.3" size="3.2 0.8 3.2" material="plastic" color="0.8 0.18 0.12"/>
-	</body>
-	<location tags="phalanx_drone_spawn" pos="-90 24 -70"/>
-	<location tags="phalanx_drone_spawn" pos="-104 20 -10"/>
-	<location tags="phalanx_drone_spawn" pos="-84 26 52"/>
-	<location tags="phalanx_drone_spawn" pos="-143.2 28.0 -74.0"/>
-	<location tags="phalanx_drone_spawn" pos="-127.2 22.0 -6.0"/>
-	<location tags="phalanx_drone_spawn" pos="-147.2 24.0 68.0"/>
+	<script file="demo/ciws_demo.lua">
+		<body pos="-47.4 2.0 19.5">
+			<voxbox name="raid_button" tags="raid_button interact=Spawn test drone" pos="-6.4 20.95 29.3" size="3.2 0.8 3.2" material="plastic" color="0.8 0.18 0.12"/>
+			<light name="raid_button_light" tags="raid_button_light" pos="-4.8 21.9 30.9" rot="90.0 0.0 0.0" type="area" color="1.0 0.2 0.12" size="1.2 1.2" scale="2.5" unshadowed="0.35" glare="0.3"/>
+		</body>
+		<location tags="phalanx_drone_spawn" pos="-90 24 -70"/>
+		<location tags="phalanx_drone_spawn" pos="-104 20 -10"/>
+		<location tags="phalanx_drone_spawn" pos="-84 26 52"/>
+		<location tags="phalanx_drone_spawn" pos="-143.2 28.0 -74.0"/>
+		<location tags="phalanx_drone_spawn" pos="-127.2 22.0 -6.0"/>
+		<location tags="phalanx_drone_spawn" pos="-147.2 24.0 68.0"/>
+	</script>
 	<group name="engine" pos="54.4 -12.7 0.1">
 		<vox tags="unbreakable" pos="-64.0 12.7 179.09999" file="MOD/map/00.vox"/>
 		<vox tags="unbreakable" pos="-64.0 12.7 51.1" file="MOD/map/01.vox"/>
@@ -183,8 +185,7 @@
 		</script>
 	</group>
 	<script file="MOD/map/beam/beam.lua">
-		<light pos="170.8 309.60001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.12 0.56 1.0" scale="300" size="400 30" unshadowed="0.0001" glare="10"/>
+		<light pos="170.8 309.60001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.12 0.56 1.0" scale="300" size="400 30" unshadowed="0.0001" glare="1000"/>
 		<light pos="170.8 284.20001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.88 0.93 0.97" scale="50" size="400 5" unshadowed="0.0001" glare="0"/>
 	</script>
 </scene>
-
