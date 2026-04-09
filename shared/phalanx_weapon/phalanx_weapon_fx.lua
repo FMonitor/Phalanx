@@ -89,7 +89,7 @@ end
 
 function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, cfg)
 	local speed = VecLength(vel)
-	local glow = 0.5 -- Normalized brightness factor based on projectile speed.
+	local glow = 1 
 
 	ParticleType("smoke")
 	ParticleColor(1.0, 0.5, 0.1) -- Brighter muzzle/tracer tint for the glowing ember particle.

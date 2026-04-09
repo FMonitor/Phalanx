@@ -362,12 +362,6 @@ function readCiwsMode()
 	end
 end
 
-function isAiSignalActive()
-	if not ciwsMode.requiresSignal then
-		return true
-	end
-	return GetBool(aiConfig.activationFlag)
-end
 
 function isAiTargetValid(bodyOrVehicle)
 	if GetEntityType(bodyOrVehicle) == "vehicle" then
@@ -388,31 +382,36 @@ function getAiAimPivot()
 end
 
 function getAiTargetPoint(bodyOrVehicle, origin)
-	local transform
-	if GetEntityType(bodyOrVehicle) == "vehicle" then
-		transform = GetVehicleTransform(bodyOrVehicle)
-	else
-		transform = GetBodyTransform(bodyOrVehicle)
-	end
-	
-	local aimPos = VecTempCopy(transform.pos)
-	local vel
-	if GetEntityType(bodyOrVehicle) == "vehicle" then
-		local b = GetVehicleBody(bodyOrVehicle)
-		if b ~= 0 then vel = GetBodyVelocity(b) else vel = Vec() end
-	else
-		vel = GetBodyVelocity(bodyOrVehicle)
-	end
-	
-	local distance = VecLength(VecSub(aimPos, origin))
-	local projectileSpeed = math.max(1.0, ciwsWeaponConfig.projectileSpeed or 100.0)
-	local travelTime = clamp(distance / projectileSpeed, 0.0, 2.5)
-	if vel then
-		aimPos = VecAdd(aimPos, VecScale(vel, travelTime * aiConfig.leadFactor))
-	end
-	aimPos[2] = aimPos[2] + 0.2
-	return aimPos
+        local aimPos
+        local vel
+        
+        if GetEntityType(bodyOrVehicle) == 'vehicle' then
+                local b = GetVehicleBody(bodyOrVehicle)
+                if b ~= 0 then 
+                        local tf = GetBodyTransform(b)
+                        aimPos = VecTempCopy(tf.pos)
+                        vel = GetBodyVelocity(b) 
+                else 
+                        local tf = GetVehicleTransform(bodyOrVehicle)
+                        aimPos = VecTempCopy(tf.pos)
+                        vel = Vec() 
+                end
+        else
+                local tf = GetBodyTransform(bodyOrVehicle)
+                aimPos = VecTempCopy(tf.pos)
+                vel = GetBodyVelocity(bodyOrVehicle)
+        end
+
+        local distance = VecLength(VecSub(aimPos, origin))
+        local projectileSpeed = math.max(1.0, ciwsWeaponConfig.projectileSpeed or 100.0)
+        local travelTime = clamp(distance / projectileSpeed, 0.0, 2.5)
+        if vel then
+                local predictedPos = VecAdd(aimPos, VecScale(vel, travelTime * aiConfig.leadFactor))
+                aimPos = predictedPos
+        end
+        return aimPos
 end
+
 
 function canAiSeePoint(origin, point, targetBodyOrVehicle)
         local toPoint = VecSub(point, origin)
@@ -432,7 +431,7 @@ function canAiSeePoint(origin, point, targetBodyOrVehicle)
         end
 
         local dir = VecScale(toPoint, 1.0 / dist)
-        local hit, hitDist, normal, shape = QueryRaycast(origin, dir, dist, 0.15)
+        local hit, hitDist, normal, shape = QueryRaycast(origin, dir, dist, 0.1)
         
         if not hit then
                 return true
@@ -449,55 +448,58 @@ function canAiSeePoint(origin, point, targetBodyOrVehicle)
 end
 
 function acquireAiTarget(origin)
-	local bestBody = 0
-	local bestPoint = Vec()
-	local bestScore = aiConfig.maxRange + 1.0
+        local bestBody = 0
+        local bestPoint = Vec()
+        local bestScore = aiConfig.maxRange + 1.0
 
-	local function checkTargets(targets)
-		if targets == nil then return end
-		for i = 1, #targets do
-			local target = targets[i]
-			if target ~= baseBody and target ~= turretBody and target ~= gunBody then
-				local isValid = isAiTargetValid(target)
-				if isValid then
-					local point = getAiTargetPoint(target, origin)
-					local dist = VecLength(VecSub(point, origin))
-					
-					local canSee = canAiSeePoint(origin, point, target)
-					DebugWatch("TargetInfo_"..target, "Dist="..math.floor(dist).." See="..tostring(canSee))
+        local function checkTargets(targets)
+                if targets == nil then return end
+                for i = 1, #targets do
+                        local target = targets[i]
+                        if target ~= baseBody and target ~= turretBody and target ~= gunBody then
+                                local isValid = isAiTargetValid(target)
+                                if isValid then
+                                        local point = getAiTargetPoint(target, origin)
+                                        local dist = VecLength(VecSub(point, origin))
+                                        
+                                        if dist <= aiConfig.maxRange and dist < bestScore then
+                                                local canSee = canAiSeePoint(origin, point, target)
+                                                if canSee then
+                                                        bestScore = dist
+                                                        bestBody = target
+                                                        bestPoint = point
+                                                end
+                                        end
+                                end
+                        end
+                end
+        end
 
-					if dist <= aiConfig.maxRange and dist < bestScore and canSee then
-						bestScore = dist
-						bestBody = target
-						bestPoint = point
-					end
-				end
-			end
-		end
-	end
+        local scanTags = {'drone', 'phalanx_drone', 'plane', 'helicopter', 'phalanx_ai_target'}
+        local validTargets = {}
+        for t = 1, #scanTags do
+                local tagVehicles = FindVehicles(scanTags[t], true)
+                if tagVehicles ~= nil then
+                        for i = 1, #tagVehicles do
+                                validTargets[#validTargets + 1] = tagVehicles[i]
+                        end
+                end
+        end
+        checkTargets(validTargets)
+        
+        local bodies = FindBodies(aiConfig.targetTag, true)
+        if bodies ~= nil then
+                for i=1, #bodies do
+                        validTargets[#validTargets+1] = bodies[i]
+                end
+        end
 
-	-- Sweep for planes safely via explicit tags (never pass "" to FindVehicles, it crashes)
-	local scanTags = {"drone", "phalanx_drone", "plane", "helicopter", "phalanx_ai_target"}
-	local validTargets = {}
-	for t = 1, #scanTags do
-		local tagVehicles = FindVehicles(scanTags[t], true)
-		if tagVehicles ~= nil then
-			for i = 1, #tagVehicles do
-				validTargets[#validTargets + 1] = tagVehicles[i]
-			end
-		end
-	end
-	checkTargets(validTargets)
-	
-	-- Fallback check specifically by our exact targetTag since some entities might be bodies, not vehicles
-	local bodies = FindBodies(aiConfig.targetTag, true)
-	checkTargets(bodies)
-
-	return bestBody, bestPoint
+        return bestBody, bestPoint
 end
 
+
 function updateAiTracking(dt)
-	if not ciwsMode.isAi or not isAiSignalActive() then
+	if not ciwsMode.isAi then
 		ciwsMode.targetBody = 0
 		ciwsMode.fireTimer = 0.0
 		return false
@@ -608,7 +610,7 @@ function server.tick(dt)
 	if ciwsMode.isAi and not serverControlActive and radarStatus ~= "Destroyed" then
 		aiTrackingActive = updateAiTracking(dt)
 		local vehCount = #(FindVehicles(aiConfig.targetTag, true) or {})
-		DebugWatch("AI_" .. tostring(vehicle), "sig="..tostring(isAiSignalActive()).." vehs="..tostring(vehCount).." tgt="..tostring(ciwsMode.targetBody))
+		DebugWatch("AI_" .. tostring(vehicle), "sig=".." vehs="..tostring(vehCount).." tgt="..tostring(ciwsMode.targetBody))
 	end
 
 	if not serverControlActive and not autoFireEnabled and not aiTrackingActive then

@@ -55,56 +55,38 @@ function spawnCrashSmoke(pos, vel)
 end
 
 function startCrash()
-	if droneState.crashing or droneBody == 0 or not IsHandleValid(droneBody) then
-		return
-	end
+        if droneState.crashing or droneBody == 0 or not IsHandleValid(droneBody) then
+                return
+        end
 
-	droneState.crashing = true
-	droneState.crashStartedTime = GetTime()
-	droneState.crashSmokeTimer = 0.0
+        droneState.crashing = true
+        droneState.crashStartedTime = GetTime()
+        droneState.crashSmokeTimer = 0.0
 
-	local bodyTransform = GetBodyTransform(droneBody)
-	local currentVel = GetBodyVelocity(droneBody)
-	Explosion(bodyTransform.pos, droneState.explosionRadius)
-
-	local crashVel = VecAdd(currentVel, VecScale(droneState.baseForward, droneState.crashForwardPush))
-	crashVel[2] = math.min(crashVel[2], -droneState.crashMinFallSpeed)
-	SetBodyVelocity(droneBody, crashVel)
-	droneState.crashAngularVelocity = Vec(rndRange(-2.0, 2.0), rndRange(-6.0, 6.0), rndRange(-2.0, 2.0))
-	SetBodyAngularVelocity(droneBody, droneState.crashAngularVelocity)
-
-	spawnCrashSmoke(bodyTransform.pos, VecScale(crashVel, 0.2))
+        local bodyTransform = GetBodyTransform(droneBody)
+        Explosion(bodyTransform.pos, droneState.explosionRadius)
 end
 
 function tickCrash(dt)
-	if droneBody == 0 or not IsHandleValid(droneBody) then
-		return
-	end
+        if droneBody == 0 or not IsHandleValid(droneBody) then
+                return
+        end
 
-	local bodyTransform = GetBodyTransform(droneBody)
-	local currentVel = GetBodyVelocity(droneBody)
-	local forwardPush = VecScale(droneState.baseForward, droneState.crashForwardPush * dt)
-	local crashVel = VecAdd(currentVel, forwardPush)
-	crashVel = VecAdd(crashVel, Vec(0, -droneState.crashGravity * dt, 0))
-	SetBodyVelocity(droneBody, crashVel)
+        local bodyTransform = GetBodyTransform(droneBody)
+        local currentVel = GetBodyVelocity(droneBody)
 
-	droneState.crashAngularVelocity = VecAdd(
-		droneState.crashAngularVelocity,
-		Vec(rndRange(-2.0, 2.0), rndRange(-2.5, 2.5), rndRange(-2.0, 2.0))
-	)
-	SetBodyAngularVelocity(droneBody, droneState.crashAngularVelocity)
+        droneState.crashSmokeTimer = droneState.crashSmokeTimer - dt
+        if droneState.crashSmokeTimer <= 0.0 then
+                droneState.crashSmokeTimer = rndRange(0.03, 0.08)
+                spawnCrashSmoke(bodyTransform.pos, currentVel)
+        end
 
-	droneState.crashSmokeTimer = droneState.crashSmokeTimer - dt
-	if droneState.crashSmokeTimer <= 0.0 then
-		droneState.crashSmokeTimer = rndRange(0.03, 0.08)
-		spawnCrashSmoke(bodyTransform.pos, VecScale(crashVel, 0.15))
-	end
-
-	if bodyTransform.pos[2] < droneState.crashCleanupHeight or GetTime() > droneState.crashStartedTime + droneState.crashDuration then
-		Delete(droneBody)
-		droneBody = 0
-	end
+        if bodyTransform.pos[2] < droneState.crashCleanupHeight or GetTime() > droneState.crashStartedTime + droneState.crashDuration then
+                Delete(droneBody)
+                droneBody = 0
+        end
 end
+
 
 droneVehicle = 0
 function server.init()
@@ -162,13 +144,13 @@ function server.tick(dt)
 	local roll = -sway * 15.0 -- 左右倾斜
 	local pitch = -altitudeError * 15.0 -- 上下倾斜
 	
-	local lookAtPos = VecAdd(bodyTransform.pos, desiredForward)
-	local baseRot = QuatLookAt(bodyTransform.pos, lookAtPos)
+        local lookAtPos = VecAdd(bodyTransform.pos, desiredForward)
+        local baseRot = QuatLookAt(bodyTransform.pos, lookAtPos)
 	
-	local baseTransform = Transform(bodyTransform.pos, baseRot)
+        local baseTransform = Transform(bodyTransform.pos, baseRot)
 	local tiltLocalTransform = Transform(Vec(0, 0, 0), QuatEuler(pitch, 0, roll))
 	local finalTransform = TransformToParentTransform(baseTransform, tiltLocalTransform)
 	
-	SetBodyAngularVelocity(droneBody, Vec(0, 0, 0))
+        SetBodyAngularVelocity(droneBody, Vec(0, 0, 0))
 	SetBodyTransform(droneBody, finalTransform)
 end
