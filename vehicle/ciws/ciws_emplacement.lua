@@ -8,6 +8,14 @@
 #include "../../shared/phalanx_weapon/phalanx_weapon_audio.lua"
 
 vehicle = 0
+
+function VecTempCopy(v)
+        return Vec(v[1], v[2], v[3])
+end
+function QuatTempCopy(q)
+        return Quat(q[1], q[2], q[3], q[4])
+end
+
 baseBody = 0
 turretBody = 0
 gunBody = 0
@@ -23,7 +31,7 @@ pitchMotorVelDeg = 0.0
 
 ciwsWeaponConfig = phalanxWeaponMakeConfig({
 	name = "phalanx_ciws",
-	fireCooldown = 0.02,
+	fireCooldown = 0.1,
 	spread = 0.008,
 })
 
@@ -60,13 +68,13 @@ jointConfig = {
 	motorStopError = 1.0,
 	motorStrength = 10000.0,
 	yawSpeedDeg = 90.0,
-	pitchSpeedDeg = 90.0,
+	pitchSpeedDeg = 120.0,
 	motorSlowdownDegPerSec = 40.0,
 }
 
 weaponOffsets = {
-	muzzle = Vec(3, 0, -0.05),    -- 枪口开火生成点（即火光和子弹起点
-	spinPivot = Vec(0.0, 0.35, 0.35) -- 枪管旋转轴圆心
+	muzzle = Vec(3, 0, -0.05),    -- 枪口开火生成点（即火光和子弹起�?
+	spinPivot = Vec(0.0, 0.35, 0.35) -- 枪管旋转轴圆�?
 }
 
 barrelSpinState = nil
@@ -77,6 +85,27 @@ shootHaptic = 0
 reticle = 0
 barrelHeat = 0.0
 isOverheated = false
+ciwsMode = {
+	isAi = false,
+	ignoreHeat = false,
+	ignoreDamagePenalty = false,
+	requiresSignal = false,
+	targetBody = 0,
+	targetPoint = Vec(),
+	scanTimer = 0.0,
+	fireTimer = 0.0,
+}
+
+aiConfig = {
+	activationFlag = "level.phalanx.demo.raid_active",
+	targetTag = "phalanx_ai_target",
+	maxRange = 260.0,
+	scanInterval = 0.12,
+	leadFactor = 1.0,
+	fireYawTolerance = 3.0,
+	firePitchTolerance = 3.0,
+	triggerHoldSeconds = 0.18,
+}
 
 function getModuleStatus(moduleBody, moduleJoint, moduleShapeTag, minVoxels)
 	if moduleBody == 0 or not IsHandleValid(moduleBody) then return "Destroyed" end
@@ -125,6 +154,14 @@ end
 
 function lerp(a, b, t)
 	return a + (b - a) * t
+end
+
+function vecLerp(a, b, t)
+	return Vec(
+		lerp(a[1], b[1], t),
+		lerp(a[2], b[2], t),
+		lerp(a[3], b[3], t)
+	)
 end
 
 function moveTowards(current, target, maxDelta)
@@ -241,11 +278,11 @@ function animateBarrelSpin()
 	end
 
 	local base = Transform(
-		VecCopy(spin.launcherLocalTransform.pos),
-		QuatCopy(spin.launcherLocalTransform.rot)
+		VecTempCopy(spin.launcherLocalTransform.pos),
+		QuatTempCopy(spin.launcherLocalTransform.rot)
 	)
 	local pivot = weaponOffsets.spinPivot
-	local pivotT = Transform(VecCopy(pivot))
+	local pivotT = Transform(VecTempCopy(pivot))
 	local unpivotT = Transform(VecScale(pivot, -1))
 	local spinT = Transform(Vec(), QuatEuler(spin.angle, 0, 0))
 	local t = TransformToParentTransform(pivotT, spinT)
@@ -282,8 +319,21 @@ function getShootDir()
 		return fallbackDir
 	end
 
+	if ciwsMode.isAi and not serverControlActive and ciwsMode.targetBody ~= 0 and IsHandleValid(ciwsMode.targetBody) then
+		return VecNormalize(VecSub(ciwsMode.targetPoint, muzzlePos))
+	end
+
 	local gunTransform = GetBodyTransform(gunBody)
 	local gunDir = TransformToParentVec(gunTransform, Vec(1, 0, 0))
+	if baseBody ~= 0 then
+		QueryRejectBody(baseBody)
+	end
+	if turretBody ~= 0 then
+		QueryRejectBody(turretBody)
+	end
+	if gunBody ~= 0 then
+		QueryRejectBody(gunBody)
+	end
 	local rayHit, rayDist = QueryRaycast(cameraTransform.pos, TransformToParentVec(cameraTransform, Vec(0, 0, -1)), 500)
 	if rayHit then
 		local hitPos = VecAdd(cameraTransform.pos, VecScale(TransformToParentVec(cameraTransform, Vec(0, 0, -1)), rayDist))
@@ -292,14 +342,219 @@ function getShootDir()
 	return VecNormalize(gunDir)
 end
 
+function readCiwsMode()
+	local tagCarrier = vehicle
+	if tagCarrier == 0 then
+		tagCarrier = baseBody
+	end
+
+	ciwsMode.isAi = tagCarrier ~= 0 and HasTag(tagCarrier, "ciws_ai")
+	ciwsMode.ignoreHeat = tagCarrier ~= 0 and HasTag(tagCarrier, "ciws_ai_noheat")
+	ciwsMode.ignoreDamagePenalty = tagCarrier ~= 0 and HasTag(tagCarrier, "ciws_ai_ignore_damage")
+	ciwsMode.requiresSignal = tagCarrier ~= 0 and HasTag(tagCarrier, "ciws_ai_requires_signal")
+	ciwsMode.targetBody = 0
+	ciwsMode.targetPoint = Vec()
+	ciwsMode.scanTimer = 0.0
+	ciwsMode.fireTimer = 0.0
+	
+	if ciwsMode.isAi then
+		DebugWatch("CIWS AI Mode initialized for vehicle/body: " .. tostring(tagCarrier))
+	end
+end
+
+function isAiSignalActive()
+	if not ciwsMode.requiresSignal then
+		return true
+	end
+	return GetBool(aiConfig.activationFlag)
+end
+
+function isAiTargetValid(bodyOrVehicle)
+	if GetEntityType(bodyOrVehicle) == "vehicle" then
+		return bodyOrVehicle ~= 0 and IsHandleValid(bodyOrVehicle) and true
+	end
+	return bodyOrVehicle ~= 0 and IsHandleValid(bodyOrVehicle) and not IsBodyBroken(bodyOrVehicle)
+end
+
+function getAiAimPivot()
+	local pivot = getGunMountedTransform(Vec(0.0, 1.8, -0.6))
+	if pivot ~= nil then
+		return pivot
+	end
+	if turretBody ~= 0 then
+		return GetBodyTransform(turretBody)
+	end
+	return GetBodyTransform(baseBody)
+end
+
+function getAiTargetPoint(bodyOrVehicle, origin)
+	local transform
+	if GetEntityType(bodyOrVehicle) == "vehicle" then
+		transform = GetVehicleTransform(bodyOrVehicle)
+	else
+		transform = GetBodyTransform(bodyOrVehicle)
+	end
+	
+	local aimPos = VecTempCopy(transform.pos)
+	local vel
+	if GetEntityType(bodyOrVehicle) == "vehicle" then
+		local b = GetVehicleBody(bodyOrVehicle)
+		if b ~= 0 then vel = GetBodyVelocity(b) else vel = Vec() end
+	else
+		vel = GetBodyVelocity(bodyOrVehicle)
+	end
+	
+	local distance = VecLength(VecSub(aimPos, origin))
+	local projectileSpeed = math.max(1.0, ciwsWeaponConfig.projectileSpeed or 100.0)
+	local travelTime = clamp(distance / projectileSpeed, 0.0, 2.5)
+	if vel then
+		aimPos = VecAdd(aimPos, VecScale(vel, travelTime * aiConfig.leadFactor))
+	end
+	aimPos[2] = aimPos[2] + 0.2
+	return aimPos
+end
+
+function canAiSeePoint(origin, point, targetBodyOrVehicle)
+        local toPoint = VecSub(point, origin)
+        local dist = VecLength(toPoint)
+        if dist < 0.001 then
+                return true
+        end
+
+        if baseBody ~= 0 then
+                QueryRejectBody(baseBody)
+        end
+        if turretBody ~= 0 then
+                QueryRejectBody(turretBody)
+        end
+        if gunBody ~= 0 then
+                QueryRejectBody(gunBody)
+        end
+
+        local dir = VecScale(toPoint, 1.0 / dist)
+        local hit, hitDist, normal, shape = QueryRaycast(origin, dir, dist, 0.15)
+        
+        if not hit then
+                return true
+        end
+        
+        local hitBody = GetShapeBody(shape)
+        if hitBody ~= 0 then
+                if hitBody == targetBodyOrVehicle or GetBodyVehicle(hitBody) == targetBodyOrVehicle then
+                        return true
+                end
+        end
+
+        return hitDist >= dist - 1.0
+end
+
+function acquireAiTarget(origin)
+	local bestBody = 0
+	local bestPoint = Vec()
+	local bestScore = aiConfig.maxRange + 1.0
+
+	local function checkTargets(targets)
+		if targets == nil then return end
+		for i = 1, #targets do
+			local target = targets[i]
+			if target ~= baseBody and target ~= turretBody and target ~= gunBody then
+				local isValid = isAiTargetValid(target)
+				if isValid then
+					local point = getAiTargetPoint(target, origin)
+					local dist = VecLength(VecSub(point, origin))
+					
+					local canSee = canAiSeePoint(origin, point, target)
+					DebugWatch("TargetInfo_"..target, "Dist="..math.floor(dist).." See="..tostring(canSee))
+
+					if dist <= aiConfig.maxRange and dist < bestScore and canSee then
+						bestScore = dist
+						bestBody = target
+						bestPoint = point
+					end
+				end
+			end
+		end
+	end
+
+	-- Sweep for planes safely via explicit tags (never pass "" to FindVehicles, it crashes)
+	local scanTags = {"drone", "phalanx_drone", "plane", "helicopter", "phalanx_ai_target"}
+	local validTargets = {}
+	for t = 1, #scanTags do
+		local tagVehicles = FindVehicles(scanTags[t], true)
+		if tagVehicles ~= nil then
+			for i = 1, #tagVehicles do
+				validTargets[#validTargets + 1] = tagVehicles[i]
+			end
+		end
+	end
+	checkTargets(validTargets)
+	
+	-- Fallback check specifically by our exact targetTag since some entities might be bodies, not vehicles
+	local bodies = FindBodies(aiConfig.targetTag, true)
+	checkTargets(bodies)
+
+	return bestBody, bestPoint
+end
+
+function updateAiTracking(dt)
+	if not ciwsMode.isAi or not isAiSignalActive() then
+		ciwsMode.targetBody = 0
+		ciwsMode.fireTimer = 0.0
+		return false
+	end
+
+	local muzzlePos, _ = getMuzzlePosAndDir()
+	local hasTarget = false
+
+	if isAiTargetValid(ciwsMode.targetBody) then
+		local point = getAiTargetPoint(ciwsMode.targetBody, muzzlePos)
+		local dist = VecLength(VecSub(point, muzzlePos))
+		if dist <= aiConfig.maxRange and canAiSeePoint(muzzlePos, point, ciwsMode.targetBody) then
+			ciwsMode.targetPoint = point
+			hasTarget = true
+		else
+			ciwsMode.targetBody = 0
+		end
+	end
+
+	ciwsMode.scanTimer = ciwsMode.scanTimer - dt
+	if (not hasTarget) and ciwsMode.scanTimer <= 0.0 then
+		ciwsMode.scanTimer = aiConfig.scanInterval
+		local targetBody, targetPoint = acquireAiTarget(muzzlePos)
+		if targetBody ~= 0 then
+			DebugWatch("CIWS AI acquired new target: " .. tostring(targetBody))
+		end
+		ciwsMode.targetBody = targetBody
+		ciwsMode.targetPoint = targetPoint
+		hasTarget = targetBody ~= 0
+	end
+
+	if not hasTarget then
+		ciwsMode.fireTimer = math.max(0.0, ciwsMode.fireTimer - dt)
+		return false
+	end
+
+	local pivot = getAiAimPivot()
+	cameraTransform = Transform(pivot.pos, QuatLookAt(pivot.pos, ciwsMode.targetPoint))
+	return true
+end
+
 function server.init()
+	DebugWatch("CIWS server.init started")
 	vehicle = findMountedVehicle()
+	DebugWatch("CIWS server findMountedVehicle returned: " .. tostring(vehicle))
+	
 	baseBody = FindBody("base")
 	turretBody = FindBody("turret")
 	gunBody = FindBody("gun")
 	yawJoint = FindJoint("ciws_yaw")
 	pitchJoint = FindJoint("ciws_pitch")
+	
+	DebugWatch("CIWS bodies: base=" .. tostring(baseBody) .. " turret=" .. tostring(turretBody) .. " gun=" .. tostring(gunBody))
+	
 	ensureBarrelSpinState()
+	readCiwsMode()
+	DebugWatch("CIWS server.init completed")
 end
 
 function server.setCameraTransform(t)
@@ -331,29 +586,38 @@ function server.tick(dt)
 	local turretStatus = getModuleStatus(turretBody, yawJoint, "ciws_turret", 10)
 	local radarStatus = getModuleStatus(gunBody, 0, "ciws_radar", 10)
 	local mountStatus = getModuleStatus(gunBody, pitchJoint, "ciws_mount", 10)
+	local ignoreHeat = ciwsMode.isAi and ciwsMode.ignoreHeat
+	local ignoreDamagePenalty = ciwsMode.isAi and ciwsMode.ignoreDamagePenalty
+	local aiTrackingActive = false
 
-	local heatConfig = ciwsWeaponConfig
-	local heatCoolingDynamic = heatConfig.heatCoolingDynamic or 0.1
-	local heatCoolingBase = heatConfig.heatCoolingBase or 0.1
-	local coolRate = heatCoolingBase + (1.0 - barrelHeat) * heatCoolingDynamic
-	barrelHeat = math.max(0.0, barrelHeat - dt * coolRate)
-	
-	if isOverheated and barrelHeat <= (heatConfig.heatRecoverThreshold or 0.0) then
+	if ignoreHeat then
+		barrelHeat = 0.0
 		isOverheated = false
+	else
+		local heatConfig = ciwsWeaponConfig
+		local heatCoolingDynamic = heatConfig.heatCoolingDynamic or 0.1
+		local heatCoolingBase = heatConfig.heatCoolingBase or 0.1
+		local coolRate = heatCoolingBase + (1.0 - barrelHeat) * heatCoolingDynamic
+		barrelHeat = math.max(0.0, barrelHeat - dt * coolRate)
+		
+		if isOverheated and barrelHeat <= (heatConfig.heatRecoverThreshold or 0.0) then
+			isOverheated = false
+		end
 	end
 
-	local currentlyFiring = false
-	if gunStatus ~= "Destroyed" and not isOverheated and mountStatus ~= "Destroyed" then
-		currentlyFiring = serverFireInput or autoFireEnabled
+	if ciwsMode.isAi and not serverControlActive and radarStatus ~= "Destroyed" then
+		aiTrackingActive = updateAiTracking(dt)
+		local vehCount = #(FindVehicles(aiConfig.targetTag, true) or {})
+		DebugWatch("AI_" .. tostring(vehicle), "sig="..tostring(isAiSignalActive()).." vehs="..tostring(vehCount).." tgt="..tostring(ciwsMode.targetBody))
 	end
 
-	if not serverControlActive and not autoFireEnabled then
+	if not serverControlActive and not autoFireEnabled and not aiTrackingActive then
 		local slow = jointConfig.motorSlowdownDegPerSec * dt
 		yawMotorVelDeg = moveTowards(yawMotorVelDeg, 0.0, slow)
 		pitchMotorVelDeg = moveTowards(pitchMotorVelDeg, 0.0, slow)
 		SetJointMotor(yawJoint, math.rad(yawMotorVelDeg), jointConfig.motorStrength)
 		SetJointMotor(pitchJoint, math.rad(pitchMotorVelDeg), jointConfig.motorStrength)
-		phalanxWeaponSpin.tickSpin(spin, dt, currentlyFiring)
+		phalanxWeaponSpin.tickSpin(spin, dt, false)
 		animateBarrelSpin()
 		return
 	end
@@ -385,7 +649,7 @@ function server.tick(dt)
 	end
 	if turretStatus == "Destroyed" then
 		desiredYawVelDeg = 0.0
-	elseif turretStatus == "Damaged" then
+	elseif turretStatus == "Damaged" and not ignoreDamagePenalty then
 		desiredYawVelDeg = desiredYawVelDeg * 0.5
 	end
 	yawMotorVelDeg = desiredYawVelDeg
@@ -412,22 +676,37 @@ function server.tick(dt)
 	end
 	if mountStatus == "Destroyed" then
 		desiredPitchVelDeg = 0.0
-	elseif mountStatus == "Damaged" then
+	elseif mountStatus == "Damaged" and not ignoreDamagePenalty then
 		desiredPitchVelDeg = desiredPitchVelDeg * 0.5
 	end
 	pitchMotorVelDeg = desiredPitchVelDeg
 	SetJointMotor(pitchJoint, math.rad(pitchMotorVelDeg), desiredPitchStrength)
 
+	local canFire = gunStatus ~= "Destroyed" and mountStatus ~= "Destroyed" and (ignoreHeat or not isOverheated)
+	local requestedFire = serverFireInput or autoFireEnabled
+	if aiTrackingActive then
+		local aligned = math.abs(yawError) <= aiConfig.fireYawTolerance and math.abs(pitchError) <= aiConfig.firePitchTolerance
+		if aligned then
+			ciwsMode.fireTimer = aiConfig.triggerHoldSeconds
+		else
+			ciwsMode.fireTimer = math.max(0.0, ciwsMode.fireTimer - dt)
+		end
+		requestedFire = ciwsMode.fireTimer > 0.0
+	end
+
+	local currentlyFiring = canFire and requestedFire
 	phalanxWeaponSpin.tickSpin(spin, dt, currentlyFiring)
 	if currentlyFiring and phalanxWeaponSpin.tryFire(spin, ciwsWeaponConfig) then
-		local heatPerShot = heatConfig.heatPerShot or 0.015
-		barrelHeat = math.min(1.0, barrelHeat + heatPerShot)
-		if barrelHeat >= (heatConfig.heatOverheatThreshold or 1.0) then
-			isOverheated = true
+		if not ignoreHeat then
+			local heatPerShot = ciwsWeaponConfig.heatPerShot or 0.015
+			barrelHeat = math.min(1.0, barrelHeat + heatPerShot)
+			if barrelHeat >= (ciwsWeaponConfig.heatOverheatThreshold or 1.0) then
+				isOverheated = true
+			end
 		end
 
 		local currentSpread = ciwsWeaponConfig.spread
-		if gunStatus == "Damaged" then
+		if gunStatus == "Damaged" and not ignoreDamagePenalty then
 			currentSpread = currentSpread * 5.0
 		end
 		local muzzlePos, _ = getMuzzlePosAndDir()
@@ -445,6 +724,7 @@ function server.tick(dt)
 end
 
 function client.init()
+	DebugWatch("CIWS client.init started")
 	vehicle = findMountedVehicle()
 	baseBody = FindBody("base")
 	turretBody = FindBody("turret")
@@ -456,7 +736,9 @@ function client.init()
 	turretRotLoop = LoadLoop("MOD/snd/turret-rot.ogg")
 	shootHaptic = LoadHaptic("MOD/haptic/gun_fire.xml")
 	reticle = LoadSprite("gfx/reticle4.png")
-	
+	readCiwsMode()
+	DebugWatch("CIWS client.init completed. AI Mode: " .. tostring(ciwsMode.isAi))
+
 	autoFireState = {
 		enabled = false,
 		synced = true,
@@ -471,11 +753,11 @@ end
 
 function client.playGunShot(px, py, pz)
 	local pos = Vec(px, py, pz)
-	if cameraTransform ~= nil and cameraTransform.pos ~= nil then
+	if GetPlayerVehicle() == vehicle and cameraTransform ~= nil and cameraTransform.pos ~= nil then
 		pos = cameraTransform.pos
 	end
 	phalanxWeaponAudio.playShot(audioState, ciwsWeaponConfig, pos)
-	if shootHaptic ~= 0 then
+	if shootHaptic ~= 0 and GetPlayerVehicle() == vehicle then
 		PlayHaptic(shootHaptic, 1)
 	end
 end

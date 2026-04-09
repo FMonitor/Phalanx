@@ -1,33 +1,199 @@
-<scene version="2.0.1" shadowVolume="200 50 200">
-	<environment template="sunset"/>
+<scene version="2.0.1" shadowVolume="260 80 400">
+	<environment template="night" skybox="night.dds.tde" skyboxtint="1.0 1.0 1.0" skyboxbrightness="0.005" skyboxrot="45" ambient="0.1" ambientexponent="1.0" fogType="classic" fogColor="0.01 0.01 0.01" fogParams="100 200 1 8" sunColorTint="1.0 1.0 1.0"/>
 	<script file="main.lua"/>
 	<script file="sandbox.lua"/>
-	<voxbox pos="-25 0 -25" size="500 1 500"/>
-	<voxbox pos="-1 0.1 -5" size="20 20 2" material="wood" color="0.7 0.5 0.3"/>
-	<spawnpoint pos="1.8 1.0 0.0" rot="0 180 0"/>
-	<script file="MOD/vehicle/ciws/ciws_emplacement.lua">
-		<vehicle tags="vehicle turret ciws_emplacement" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
-			<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
-				<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
-				<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
-					<joint name="yaw" tags="ciws_yaw" pos="0.05 -2.0 -0.05" rot="90.0 0.0 0.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false"/>
-					<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
-					<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
-						<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-						<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-						<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
-						<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
-							<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
-						</vox>
-						<vox tags="ciws_radar" pos="0.0 0.5 0.0" density="0.1" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="radar"/>
-						<vox tags="ciws_barrel" pos="2.4 -0.4 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
+	<script file="demo/ciws_demo.lua"/>
+	<spawnpoint pos="-46.4 23.2 34.4" rot="0 180 0"/>
+	<body pos="-47.4 2.0 19.5">
+		<voxbox tags="raid_button interact=Spawn test drone" pos="-6.4 20.95 29.3" size="3.2 0.8 3.2" material="plastic" color="0.8 0.18 0.12"/>
+	</body>
+	<location tags="phalanx_drone_spawn" pos="-90 24 -70"/>
+	<location tags="phalanx_drone_spawn" pos="-104 20 -10"/>
+	<location tags="phalanx_drone_spawn" pos="-84 26 52"/>
+	<location tags="phalanx_drone_spawn" pos="-143.2 28.0 -74.0"/>
+	<location tags="phalanx_drone_spawn" pos="-127.2 22.0 -6.0"/>
+	<location tags="phalanx_drone_spawn" pos="-147.2 24.0 68.0"/>
+	<group name="engine" pos="54.4 -12.7 0.1">
+		<vox tags="unbreakable" pos="-64.0 12.7 179.09999" file="MOD/map/00.vox"/>
+		<vox tags="unbreakable" pos="-64.0 12.7 51.1" file="MOD/map/01.vox"/>
+		<vox tags="unbreakable" pos="-64.0 12.7 -76.9" file="MOD/map/02.vox"/>
+		<vox tags="unbreakable" pos="-38.39998 12.7 -153.70001" file="MOD/map/03.vox"/>
+		<vox tags="unbreakable" pos="63.99983 12.7 179.09999" file="MOD/map/10.vox"/>
+		<vox tags="unbreakable" pos="63.99983 38.3 51.1" file="MOD/map/11.vox"/>
+		<vox tags="unbreakable" pos="63.99983 38.3 -76.9" file="MOD/map/12.vox"/>
+		<vox tags="unbreakable" pos="63.99998 12.7 -204.90001" file="MOD/map/13.vox"/>
+	</group>
+	<boundary pos="-12.8 17.50002 0.0">
+		<vertex pos="-213.5 -256.10001"/>
+		<vertex pos="2.5 -168.5"/>
+		<vertex pos="142.40001 -60.5"/>
+		<vertex pos="120.0 -36.2"/>
+		<vertex pos="109.6 3.2"/>
+		<vertex pos="122.6 37.0"/>
+		<vertex pos="106.3 59.8"/>
+		<vertex pos="85.3 51.6"/>
+		<vertex pos="-38.2 83.0"/>
+		<vertex pos="17.2 196.90001"/>
+		<vertex pos="-214.5 232.60001"/>
+	</boundary>
+	<group name="phalanx" pos="18.7 21.2 28.8">
+		<script pos="-63.8 -0.1 9.2" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
+					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
+					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
+						<joint name="yaw" tags="ciws_yaw" pos="0.05 -2.0 -0.05" rot="90.0 0.0 0.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false"/>
+						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
+						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
+							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
+							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
+							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
+							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
+								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
+							</vox>
+							<vox tags="ciws_radar" pos="0.0 0.5 0.0" density="0.1" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="radar"/>
+							<vox tags="ciws_barrel" pos="2.4 -0.4 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
+						</body>
 					</body>
 				</body>
-			</body>
-			<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-				<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-			</rig>
-		</vehicle>
+				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
+					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
+				</rig>
+			</vehicle>
+		</script>
+		<script pos="-59.0 -0.1 30.0" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
+					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
+					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
+						<joint name="yaw" tags="ciws_yaw" pos="0.05 -2.0 -0.05" rot="90.0 0.0 0.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false"/>
+						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
+						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
+							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
+							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
+							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
+							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
+								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
+							</vox>
+							<vox tags="ciws_radar" pos="0.0 0.5 0.0" density="0.1" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="radar"/>
+							<vox tags="ciws_barrel" pos="2.4 -0.4 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
+						</body>
+					</body>
+				</body>
+				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
+					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
+				</rig>
+			</vehicle>
+		</script>
+		<script pos="65.5 -0.1 172.29999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
+					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
+					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
+						<joint name="yaw" tags="ciws_yaw" pos="0.05 -2.0 -0.05" rot="90.0 0.0 0.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false"/>
+						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
+						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
+							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
+							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
+							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
+							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
+								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
+							</vox>
+							<vox tags="ciws_radar" pos="0.0 0.5 0.0" density="0.1" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="radar"/>
+							<vox tags="ciws_barrel" pos="2.4 -0.4 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
+						</body>
+					</body>
+				</body>
+				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
+					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
+				</rig>
+			</vehicle>
+		</script>
+		<script pos="45.9 -0.1 162.59999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
+					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
+					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
+						<joint name="yaw" tags="ciws_yaw" pos="0.05 -2.0 -0.05" rot="90.0 0.0 0.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false"/>
+						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
+						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
+							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
+							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
+							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
+							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
+								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
+							</vox>
+							<vox tags="ciws_radar" pos="0.0 0.5 0.0" density="0.1" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="radar"/>
+							<vox tags="ciws_barrel" pos="2.4 -0.4 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
+						</body>
+					</body>
+				</body>
+				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
+					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
+				</rig>
+			</vehicle>
+		</script>
+		<script pos="-26.0 -0.1 -155.90001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
+					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
+					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
+						<joint name="yaw" tags="ciws_yaw" pos="0.05 -2.0 -0.05" rot="90.0 0.0 0.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false"/>
+						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
+						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
+							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
+							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
+							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
+							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
+								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
+							</vox>
+							<vox tags="ciws_radar" pos="0.0 0.5 0.0" density="0.1" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="radar"/>
+							<vox tags="ciws_barrel" pos="2.4 -0.4 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
+						</body>
+					</body>
+				</body>
+				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
+					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
+				</rig>
+			</vehicle>
+		</script>
+		<script pos="-12.50001 -0.1 -172.70001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
+					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
+					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
+						<joint name="yaw" tags="ciws_yaw" pos="0.05 -2.0 -0.05" rot="90.0 0.0 0.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false"/>
+						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
+						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
+							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
+							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
+							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
+							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
+								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
+							</vox>
+							<vox tags="ciws_radar" pos="0.0 0.5 0.0" density="0.1" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="radar"/>
+							<vox tags="ciws_barrel" pos="2.4 -0.4 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="barrel"/>
+						</body>
+					</body>
+				</body>
+				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
+					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
+				</rig>
+			</vehicle>
+		</script>
+	</group>
+	<script file="MOD/map/beam/beam.lua">
+		<body name="beam" tags="engine_beam" pos="-46.6 26.7 76.4" dynamic="false">
+			<voxbox pos="-4.0 -4.0 -54.0" size="8.0 8.0 108.0" material="glass" color="0.96 0.98 1.00"/>
+			<voxbox pos="-2.3 -2.3 -62.0" size="4.6 4.6 124.0" material="glass" color="0.42 0.80 1.00"/>
+			<voxbox pos="-1.2 -1.2 -70.0" size="2.4 2.4 140.0" material="glass" color="0.10 0.56 1.00"/>
+			<voxbox pos="-5.4 -5.4 -10.0" size="10.8 10.8 16.0" material="glass" color="0.98 0.99 1.00"/>
+			<voxbox pos="-3.0 -3.0 -12.0" size="6.0 6.0 18.0" material="glass" color="0.48 0.84 1.00"/>
+			<voxbox pos="-1.5 -1.5 -14.0" size="3.0 3.0 20.0" material="glass" color="0.08 0.50 1.00"/>
+			<location name="beam_light_near" pos="0.0 0.0 -8.0"/>
+			<location name="beam_light_mid" pos="0.0 0.0 -44.0"/>
+			<location name="beam_light_far" pos="0.0 0.0 -88.0"/>
+		</body>
 	</script>
 </scene>
 

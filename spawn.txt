@@ -1,2 +1,4 @@
 vehicle/phalanx-truck/phalanx_truck.xml : Vehicles/Phalanx Truck
 vehicle/ciws/ciws_emplacement.xml : Vehicles/Phalanx CIWS
+vehicle/ciws/ciws_ai_emplacement.xml : Vehicles AI/Phalanx CIWS(AI)
+demo/drone_target.xml : Vehicles AI/Drone Target

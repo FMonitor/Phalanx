@@ -1,2 +1,7 @@
 reference_mod/
 docs/military
+Global Mod/
+*.js
+node_modules/
+package-lock.json
+package.json

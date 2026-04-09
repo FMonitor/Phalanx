@@ -1,0 +1,13 @@
+<prefab version="2.0.0">
+	<script file="MOD/map/beam/beam.lua">
+		<body name="beam" dynamic="false" tags="engine_beam">
+			<voxbox pos="-5.0 -5.0 -64.0" size="10.0 10.0 128.0" material="glass" color="0.98 0.99 1.00" tags="beam_glow"/>
+			<voxbox pos="-3.2 -3.2 -68.0" size="6.4 6.4 136.0" material="glass" color="0.46 0.82 1.00" tags="beam_glow"/>
+			<voxbox pos="-1.6 -1.6 -72.0" size="3.2 3.2 144.0" material="glass" color="0.10 0.54 1.00" tags="beam_glow"/>
+
+			<light pos="0.0 0.0 -10.0" rot="0.0 0.0 0.0" type="capsule" color="0.95 0.98 1.0" scale="14" size="1.1 0.08" unshadowed="0.35" glare="0.55"/>
+			<light pos="0.0 0.0 -52.0" rot="0.0 0.0 0.0" type="capsule" color="0.42 0.80 1.0" scale="10" size="0.9 0.08" unshadowed="0.25" glare="0.35"/>
+			<light pos="0.0 0.0 -100.0" rot="0.0 0.0 0.0" type="capsule" color="0.12 0.56 1.0" scale="7" size="0.7 0.08" unshadowed="0.2" glare="0.2"/>
+		</body>
+	</script>
+</prefab>

@@ -89,10 +89,10 @@ end
 
 function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, cfg)
 	local speed = VecLength(vel)
-	local glow = 1 -- Normalized brightness factor based on projectile speed.
+	local glow = 0.5 -- Normalized brightness factor based on projectile speed.
 
 	ParticleType("smoke")
-	ParticleColor(1.0, 0.9, 0.55) -- Brighter muzzle/tracer tint for the glowing ember particle.
+	ParticleColor(1.0, 0.5, 0.1) -- Brighter muzzle/tracer tint for the glowing ember particle.
 	ParticleRadius(0.05, 0.02) -- Small shrinking glow puff; first value is initial size, second is final size.
 	ParticleAlpha(0.95, 0.0) -- Nearly opaque at spawn, then fades out completely.
 	ParticleDrag(0.05) -- Low drag keeps the glow particle from stopping too abruptly.
@@ -104,5 +104,5 @@ function phalanxWeaponFx.spawnProjectileGlow(pos, vel, rndVec, cfg)
 	end
 	SpawnParticle(pos, rv, 0.1) -- Very short-lived glow particle.
 
-	PointLight(pos, 1.0, 0.78, 0.35, cfg.projectileLightRadius * glow) -- Dynamic light color and radius for tracer glow.
+	PointLight(pos, 1.0, 0.5, 0.35, cfg.projectileLightRadius * glow) -- Dynamic light color and radius for tracer glow.
 end
