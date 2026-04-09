@@ -1,0 +1,23 @@
+﻿function updateAiTracking(dt)
+if not ciwsMode.isAi then
+ciwsMode.targetBody = 0
+ciwsMode.fireTimer = 0.0
+return false
+end
+
+local muzzlePos, _ = getMuzzlePosAndDir()
+local hasTarget = false
+
+if isAiTargetValid(ciwsMode.targetBody) then
+local point = getAiTargetPoint(ciwsMode.targetBody, muzzlePos)
+local dist = VecLength(VecSub(point, muzzlePos))
+if point[2] < muzzlePos[2] - 1.0 then dist = aiConfig.maxRange + 10.0 end
+if dist <= aiConfig.maxRange and canAiSeePoint(muzzlePos, point, ciwsMode.targetBody) then
+ciwsMode.targetPoint = point
+hasTarget = true
+else
+ciwsMode.targetBody = 0
+end
+end
+
+ciwsMode.scanTimer = ciwsMode.scanTimer - dt

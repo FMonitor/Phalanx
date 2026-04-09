@@ -100,37 +100,39 @@ aiConfig = {
 	activationFlag = "level.phalanx.demo.raid_active",
 	targetTag = "phalanx_ai_target",
 	maxRange = 260.0,
-	scanInterval = 0.12,
+	scanInterval = 1,
 	leadFactor = 1.0,
 	fireYawTolerance = 3.0,
 	firePitchTolerance = 3.0,
 	triggerHoldSeconds = 0.18,
 }
 
+local cachedModuleShapes = {}
 function getModuleStatus(moduleBody, moduleJoint, moduleShapeTag, minVoxels)
 	if moduleBody == 0 or not IsHandleValid(moduleBody) then return "Destroyed" end
 	if moduleJoint ~= 0 and (not IsHandleValid(moduleJoint) or IsJointBroken(moduleJoint)) then return "Destroyed" end
 
 	if moduleShapeTag and moduleShapeTag ~= "" then
-		local foundGood = false
-		local shapeDamaged = false
-		local shapes = GetBodyShapes(moduleBody)
-		if shapes ~= nil then
-			for i=1, #shapes do
-				if HasTag(shapes[i], moduleShapeTag) then	
-					if GetShapeVoxelCount(shapes[i]) >= minVoxels then
-						foundGood = true
-						if IsShapeBroken(shapes[i]) then
-							shapeDamaged = true
-						end
+		local shape = cachedModuleShapes[moduleShapeTag]
+		if not shape or not IsHandleValid(shape) then
+			local shapes = GetBodyShapes(moduleBody)
+			if shapes ~= nil then
+				for i=1, #shapes do
+					if HasTag(shapes[i], moduleShapeTag) then
+						shape = shapes[i]
+						cachedModuleShapes[moduleShapeTag] = shape
+						break
 					end
-					break
 				end
 			end
 		end
-		if not foundGood then return "Destroyed" end
-		if shapeDamaged then return "Damaged" end
-		return "Good"
+
+		if shape ~= nil and IsHandleValid(shape) then
+			if GetShapeVoxelCount(shape) >= minVoxels then
+				if IsShapeBroken(shape) then return "Damaged" else return "Good" end
+			end
+		end
+		return "Destroyed"
 	end
 	if IsBodyBroken(moduleBody) then return "Damaged" end
 	return "Good"
@@ -365,7 +367,7 @@ end
 
 function isAiTargetValid(bodyOrVehicle)
 	if GetEntityType(bodyOrVehicle) == "vehicle" then
-		return bodyOrVehicle ~= 0 and IsHandleValid(bodyOrVehicle) and true
+		return bodyOrVehicle ~= 0 and IsHandleValid(bodyOrVehicle) and GetVehicleHealth(bodyOrVehicle) > 0.0
 	end
 	return bodyOrVehicle ~= 0 and IsHandleValid(bodyOrVehicle) and not IsBodyBroken(bodyOrVehicle)
 end
@@ -405,9 +407,17 @@ function getAiTargetPoint(bodyOrVehicle, origin)
         local distance = VecLength(VecSub(aimPos, origin))
         local projectileSpeed = math.max(1.0, ciwsWeaponConfig.projectileSpeed or 100.0)
         local travelTime = clamp(distance / projectileSpeed, 0.0, 2.5)
+
+        -- Gravity compensation
+        local projGravity = ciwsWeaponConfig.projectileGravity or 9.8
+        local heightOffset = (0.5 * projGravity * travelTime * travelTime) + 1.2 -- +1.2m offset to hit upper body
+
         if vel then
                 local predictedPos = VecAdd(aimPos, VecScale(vel, travelTime * aiConfig.leadFactor))
+                predictedPos[2] = predictedPos[2] + heightOffset
                 aimPos = predictedPos
+        else
+                aimPos[2] = aimPos[2] + heightOffset
         end
         return aimPos
 end
@@ -461,6 +471,7 @@ function acquireAiTarget(origin)
                                 if isValid then
                                         local point = getAiTargetPoint(target, origin)
                                         local dist = VecLength(VecSub(point, origin))
+						if point[2] < origin[2] - 1.0 then dist = aiConfig.maxRange + 10.0 end
                                         
                                         if dist <= aiConfig.maxRange and dist < bestScore then
                                                 local canSee = canAiSeePoint(origin, point, target)
@@ -511,24 +522,35 @@ function updateAiTracking(dt)
 	if isAiTargetValid(ciwsMode.targetBody) then
 		local point = getAiTargetPoint(ciwsMode.targetBody, muzzlePos)
 		local dist = VecLength(VecSub(point, muzzlePos))
-		if dist <= aiConfig.maxRange and canAiSeePoint(muzzlePos, point, ciwsMode.targetBody) then
+				if point[2] < muzzlePos[2] - 1.0 then dist = aiConfig.maxRange + 10.0 end
+		
+		ciwsMode.losTimer = (ciwsMode.losTimer or 0.0) - dt
+		if ciwsMode.losTimer <= 0.0 then
+			ciwsMode.hasLos = canAiSeePoint(muzzlePos, point, ciwsMode.targetBody)
+			ciwsMode.losTimer = 0.2
+		end
+
+		if dist <= aiConfig.maxRange and ciwsMode.hasLos then
 			ciwsMode.targetPoint = point
 			hasTarget = true
 		else
 			ciwsMode.targetBody = 0
+			ciwsMode.hasLos = nil
 		end
 	end
 
 	ciwsMode.scanTimer = ciwsMode.scanTimer - dt
-	if (not hasTarget) and ciwsMode.scanTimer <= 0.0 then
+	if ciwsMode.scanTimer <= 0.0 then
 		ciwsMode.scanTimer = aiConfig.scanInterval
 		local targetBody, targetPoint = acquireAiTarget(muzzlePos)
 		if targetBody ~= 0 then
-			DebugWatch("CIWS AI acquired new target: " .. tostring(targetBody))
+			ciwsMode.targetBody = targetBody
+			ciwsMode.targetPoint = targetPoint
+			hasTarget = true
+			ciwsMode.hasLos = true
+		elseif not hasTarget then
+			ciwsMode.targetBody = 0
 		end
-		ciwsMode.targetBody = targetBody
-		ciwsMode.targetPoint = targetPoint
-		hasTarget = targetBody ~= 0
 	end
 
 	if not hasTarget then
@@ -609,8 +631,6 @@ function server.tick(dt)
 
 	if ciwsMode.isAi and not serverControlActive and radarStatus ~= "Destroyed" then
 		aiTrackingActive = updateAiTracking(dt)
-		local vehCount = #(FindVehicles(aiConfig.targetTag, true) or {})
-		DebugWatch("AI_" .. tostring(vehicle), "sig=".." vehs="..tostring(vehCount).." tgt="..tostring(ciwsMode.targetBody))
 	end
 
 	if not serverControlActive and not autoFireEnabled and not aiTrackingActive then

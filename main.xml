@@ -183,17 +183,8 @@
 		</script>
 	</group>
 	<script file="MOD/map/beam/beam.lua">
-		<body name="beam" tags="engine_beam" pos="-46.6 26.7 76.4" dynamic="false">
-			<voxbox pos="-4.0 -4.0 -54.0" size="8.0 8.0 108.0" material="glass" color="0.96 0.98 1.00"/>
-			<voxbox pos="-2.3 -2.3 -62.0" size="4.6 4.6 124.0" material="glass" color="0.42 0.80 1.00"/>
-			<voxbox pos="-1.2 -1.2 -70.0" size="2.4 2.4 140.0" material="glass" color="0.10 0.56 1.00"/>
-			<voxbox pos="-5.4 -5.4 -10.0" size="10.8 10.8 16.0" material="glass" color="0.98 0.99 1.00"/>
-			<voxbox pos="-3.0 -3.0 -12.0" size="6.0 6.0 18.0" material="glass" color="0.48 0.84 1.00"/>
-			<voxbox pos="-1.5 -1.5 -14.0" size="3.0 3.0 20.0" material="glass" color="0.08 0.50 1.00"/>
-			<location name="beam_light_near" pos="0.0 0.0 -8.0"/>
-			<location name="beam_light_mid" pos="0.0 0.0 -44.0"/>
-			<location name="beam_light_far" pos="0.0 0.0 -88.0"/>
-		</body>
+		<light pos="170.8 309.60001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.12 0.56 1.0" scale="300" size="400 30" unshadowed="0.0001" glare="10"/>
+		<light pos="170.8 284.20001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.88 0.93 0.97" scale="50" size="400 5" unshadowed="0.0001" glare="0"/>
 	</script>
 </scene>
 
