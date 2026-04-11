@@ -2,7 +2,7 @@
 
 phalanxWeaponConfigDefaults = phalanxWeaponConfigDefaults or {
 	name = "phalanx_weapon",
-	projectileSpeed = 100.0,
+	projectileSpeed = 150.0,
 	projectileGravity = 9.8,
 	projectileLifetime = 5.0,
 	projectileBlast = 0.5,
@@ -25,7 +25,7 @@ phalanxWeaponConfigDefaults = phalanxWeaponConfigDefaults or {
 	-- Heat & Overheat Config
 	heatPerShot = 0.01,         -- Each shot adds 1% heat
 	heatCoolingBase = 0.1,       -- Base cooling speed 10%/sec
-	heatCoolingDynamic = 0.18,    -- Extra cooling speed when cold (e.g., 100% - heat = +10%/sec)
+	heatCoolingDynamic = 0.15,    -- Extra cooling speed when cold (e.g., 100% - heat = +10%/sec)
 	heatOverheatThreshold = 1.0, -- Reach 1.0 to overheat
 	heatRecoverThreshold = 0.0,  -- Must reach 0.0 to recover from overheat
 }

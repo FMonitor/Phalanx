@@ -1,64 +1,65 @@
 #version 2
 
-CIWS_VARIANT = "player"
+CIWS_VARIANT = "ai"
 
 function ciwsConfigureMode(tagCarrier)
-	ciwsMode.isAi = false
-	ciwsMode.ignoreHeat = false
+	ciwsMode.isAi = true
+	ciwsMode.ignoreHeat = tagCarrier ~= 0 and HasTag(tagCarrier, "ciws_ai_noheat")
 	ciwsMode.ignoreDamagePenalty = false
 end
 
 function ciwsInitializeServerModeState()
-	autoFireEnabled = false
+	autoFireEnabled = true
 end
 
 function ciwsInitializeClientModeState()
-	autoFireState.enabled = false
+	autoFireState.enabled = true
 	autoFireState.synced = true
 end
 
 function ciwsCanToggleAutoMode()
-	return true
+	return false
 end
 
 function ciwsHandleClientModeInput()
-	if InputPressed("q") then
-		autoFireState.enabled = not autoFireState.enabled
-		autoFireState.synced = false
-	end
 end
 
 function ciwsGetClientRequestedFire()
-	return InputDown("vehicleraise") or InputDown("usetool")
+	return false
 end
 
 function ciwsShouldUseTrackedTarget()
-	return autoFireEnabled
+	return true
 end
 
 function ciwsIsTrackingEnabled(radarStatus)
-	return radarStatus ~= "Destroyed" and autoFireEnabled
+	return radarStatus ~= "Destroyed"
 end
 
 function ciwsHandleServerRadarDestroyed(radarStatus)
-	if radarStatus == "Destroyed" and autoFireEnabled then
-		autoFireEnabled = false
-	end
 end
 
 function ciwsResolveRequestedFire(dt, aiTrackingActive, yawError, pitchError)
-	return serverFireInput
+	if not aiTrackingActive then
+		ciwsMode.fireTimer = math.max(0.0, ciwsMode.fireTimer - dt)
+		return false
+	end
+
+	local aligned = math.abs(yawError) <= aiConfig.fireYawTolerance and math.abs(pitchError) <= aiConfig.firePitchTolerance
+	if aligned then
+		ciwsMode.fireTimer = aiConfig.triggerHoldSeconds
+	else
+		ciwsMode.fireTimer = math.max(0.0, ciwsMode.fireTimer - dt)
+	end
+
+	return ciwsMode.fireTimer > 0.0
 end
 
 function ciwsGetLockLabel()
-	return "Auto Lock [Q]: "
+	return "Auto Fire [AI]: "
 end
 
 function ciwsHandleClientRadarDestroyed(radarStatus)
-	if radarStatus == "Destroyed" and autoFireState.enabled then
-		autoFireState.enabled = false
-		autoFireState.synced = false
-	end
 end
 
 #include "ciws_emplacement_core.lua"

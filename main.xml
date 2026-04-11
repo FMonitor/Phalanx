@@ -42,8 +42,8 @@
 		<vertex pos="-214.5 232.60001"/>
 	</boundary>
 	<group name="phalanx" pos="18.7 21.2 28.8">
-		<script pos="-74.99998 -0.1 11.7" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
-			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+		<script pos="-74.99998 -0.1 11.7" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
 					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
@@ -66,8 +66,8 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="-70.2 -0.1 32.49999" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
-			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+		<script pos="-70.2 -0.1 32.49999" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
 					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
@@ -90,8 +90,8 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="60.8 -0.1 182.59999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
-			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+		<script pos="60.8 -0.1 182.59999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
 					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
@@ -114,8 +114,8 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="41.2 -0.1 172.89999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
-			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+		<script pos="41.2 -0.1 172.89999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
 					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
@@ -138,8 +138,8 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="-34.4 -0.1 -162.10001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
-			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+		<script pos="-34.4 -0.1 -162.10001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
 					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
@@ -162,8 +162,8 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="-20.90001 -0.1 -178.90001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
-			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
+		<script pos="-20.90001 -0.1 -178.90001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
+			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
 					<body name="turret" tags="turret" pos="0.0 1.3 0.0" dynamic="true">
@@ -191,5 +191,12 @@
 		<light pos="170.8 309.60001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.12 0.56 1.0" scale="300" size="400 30" unshadowed="0.0001" glare="1000"/>
 		<light pos="170.8 284.20001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.88 0.93 0.97" scale="50" size="400 5" unshadowed="0.0001" glare="0"/>
 	</script>
+	<script pos="-172.5 55.1 -94.9" file="MOD/demo/drone_target.lua">
+		<vehicle name="drone" tags="drone phalanx_drone phalanx_ai_target" pos="0 0 0">
+			<body name="drone_body" tags="drone_body phalanx_drone phalanx_ai_target" dynamic="true">
+				<vox file="MOD/map/drone.vox"/>
+				<voxbox name="drone_beacon" tags="drone_beacon blink" pos="-0.08 -1.38 -1.78" size="0.16 0.16 0.16" material="glass" color="0.2 0.75 1.0"/>
+			</body>
+		</vehicle>
+	</script>
 </scene>
-
