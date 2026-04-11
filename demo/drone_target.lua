@@ -154,7 +154,7 @@ function client.render(dt)
 
 		if droneBody ~= 0 and IsHandleValid(droneBody) then
 			local bodyTransform = GetBodyTransform(droneBody)
-			local lightPos = VecAdd(bodyTransform.pos, Vec(0.0, -0.55, 0.0))
+			local lightPos = VecAdd(bodyTransform.pos, Vec(0.0, -1, 0.0))
 			PointLight(lightPos, 0.2, 0.9, 1.0, 5.0)
 		end
 	else

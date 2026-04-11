@@ -1,5 +1,5 @@
 <scene version="2.0.1" shadowVolume="260 80 400">
-	<environment template="night" skybox="night.dds.tde" skyboxtint="1.0 1.0 1.0" skyboxbrightness="0.005" skyboxrot="45" ambient="0.1" ambientexponent="1.0" fogType="classic" fogColor="0.01 0.01 0.01" fogParams="100 200 0 8" sunColorTint="1.0 1.0 1.0"/>
+	<environment template="night" skybox="night.dds.tde" skyboxbrightness="0.005" skyboxrot="45" ambient="0.1" ambientexponent="1.0" fogType="classic"/>
 	<script file="main.lua"/>
 	<script file="sandbox.lua"/>
 	<spawnpoint pos="-46.4 23.2 34.4" rot="0 180 0"/>
@@ -169,4 +169,7 @@
 			</body>
 		</vehicle>
 	</script>
+	<vox name="mountain" pos="164.60001 7.4 7.3" rot="0 -90 0" file="MOD/map/mountain.vox" scale="4"/>
+	<water pos="0.0 -20.7 0.0"/>
 </scene>
+

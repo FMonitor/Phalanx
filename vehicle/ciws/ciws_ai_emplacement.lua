@@ -32,6 +32,10 @@ function ciwsShouldUseTrackedTarget()
 	return true
 end
 
+function ciwsResolveManualShootDir(muzzlePos, gunDir)
+	return VecNormalize(gunDir)
+end
+
 function ciwsIsTrackingEnabled(radarStatus)
 	return radarStatus ~= "Destroyed"
 end
@@ -64,6 +68,26 @@ end
 
 function ciwsShouldRenderHud()
 	return false
+end
+
+function ciwsShouldSyncHeatState()
+	return false
+end
+
+function server.init()
+	ciwsCommonServerInit()
+end
+
+function server.tick(dt)
+	ciwsCommonServerTick(dt)
+end
+
+function client.init()
+	ciwsCommonRemoteClientInit()
+end
+
+function client.tick(dt)
+	ciwsCommonRemoteClientTick(dt)
 end
 
 #include "ciws_emplacement_core.lua"

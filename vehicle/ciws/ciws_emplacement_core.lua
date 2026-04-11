@@ -48,8 +48,8 @@ cameraState = {
 }
 
 cameraConfig = {
-	sensX = 5000.0,
-	sensY = 5000.0,
+	sensX = 1000.0,
+	sensY = 1000.0,
 	distMin = 0.0,
 	distMax = 14.0,
 	firstPersonThreshold = 0.65,
@@ -66,7 +66,7 @@ jointConfig = {
 	pitchOffset = 0.0,
 	pitchSign = -1.0,
 	motorStopError = 1.0,
-	motorStrength = 10000.0,
+	motorStrength = 5000.0,
 	yawSpeedDeg = 90.0,
 	pitchSpeedDeg = 120.0,
 	motorSlowdownDegPerSec = 40.0,
@@ -85,6 +85,10 @@ shootHaptic = 0
 reticle = 0
 barrelHeat = 0.0
 isOverheated = false
+remoteAudioState = {
+	turretForward = nil,
+	initialized = false,
+}
 ciwsMode = {
 	isAi = false,
 	ignoreHeat = false,
@@ -93,6 +97,12 @@ ciwsMode = {
 	targetPoint = Vec(),
 	scanTimer = 0.0,
 	scanPhaseOffset = 0.0,
+	fallbackScanTimer = 0.0,
+	fallbackScanPhaseOffset = 0.0,
+	primaryCacheTimer = 0.0,
+	primaryCachePhaseOffset = 0.0,
+	fallbackCacheTimer = 0.0,
+	fallbackCachePhaseOffset = 0.0,
 	fireTimer = 0.0,
 	trackUpdateTimer = 0.0,
 	trackPhaseOffset = 0.0,
@@ -103,6 +113,10 @@ aiConfig = {
 	targetTag = "phalanx_ai_target",
 	maxRange = 360.0,
 	scanInterval = 1,
+	trackedRescanInterval = 2.0,
+	fallbackScanInterval = 2.5,
+	primaryCacheInterval = 0.75,
+	fallbackCacheInterval = 2.5,
 	trackInterval = 0.3,
 	leadFactor = 1.2,
 	fireYawTolerance = 3.0,
@@ -113,6 +127,10 @@ aiConfig = {
 local cachedModuleShapes = {}
 local cachedModuleStatus = {}
 local cachedModuleInitialVoxels = {}
+local aiTargetSearchCache = {
+	primaryTargets = {},
+	fallbackTargets = {},
+}
 local statusTimer = 0.0
 
 function getModuleStatus(moduleBody, moduleJoint, moduleShapeTag, minVoxels, destroyedRatio)
@@ -353,21 +371,7 @@ function getShootDir()
 
 	local gunTransform = GetBodyTransform(gunBody)
 	local gunDir = TransformToParentVec(gunTransform, Vec(1, 0, 0))
-	if baseBody ~= 0 then
-		QueryRejectBody(baseBody)
-	end
-	if turretBody ~= 0 then
-		QueryRejectBody(turretBody)
-	end
-	if gunBody ~= 0 then
-		QueryRejectBody(gunBody)
-	end
-	local rayHit, rayDist = QueryRaycast(cameraTransform.pos, TransformToParentVec(cameraTransform, Vec(0, 0, -1)), 500)
-	if rayHit then
-		local hitPos = VecAdd(cameraTransform.pos, VecScale(TransformToParentVec(cameraTransform, Vec(0, 0, -1)), rayDist))
-		return VecNormalize(VecSub(hitPos, muzzlePos))
-	end
-	return VecNormalize(gunDir)
+	return ciwsResolveManualShootDir(muzzlePos, gunDir)
 end
 
 function readCiwsMode()
@@ -382,8 +386,13 @@ function readCiwsMode()
 	ciwsMode.targetBody = 0
 	ciwsMode.targetPoint = Vec()
 	ciwsMode.scanTimer = ciwsMode.scanPhaseOffset
+	ciwsMode.fallbackScanTimer = ciwsMode.fallbackScanPhaseOffset
+	ciwsMode.primaryCacheTimer = ciwsMode.primaryCachePhaseOffset
+	ciwsMode.fallbackCacheTimer = ciwsMode.fallbackCachePhaseOffset
 	ciwsMode.fireTimer = 0.0
 	ciwsMode.trackUpdateTimer = ciwsMode.trackPhaseOffset
+	aiTargetSearchCache.primaryTargets = {}
+	aiTargetSearchCache.fallbackTargets = {}
 	
 	if ciwsMode.isAi then
 		DebugWatch("CIWS AI Mode initialized for vehicle/body: " .. tostring(tagCarrier))
@@ -416,8 +425,14 @@ function configureAiUpdateSchedule()
 	local seed = getCiwsScheduleSeed()
 	local scanPhase = getCiwsPhaseValue(seed)
 	local trackPhase = getCiwsPhaseValue(seed + 19.417)
+	local fallbackPhase = getCiwsPhaseValue(seed + 41.231)
+	local primaryCachePhase = getCiwsPhaseValue(seed + 63.731)
+	local fallbackCachePhase = getCiwsPhaseValue(seed + 87.913)
 	ciwsMode.scanPhaseOffset = scanPhase * aiConfig.scanInterval
 	ciwsMode.trackPhaseOffset = trackPhase * aiConfig.trackInterval
+	ciwsMode.fallbackScanPhaseOffset = fallbackPhase * aiConfig.fallbackScanInterval
+	ciwsMode.primaryCachePhaseOffset = primaryCachePhase * aiConfig.primaryCacheInterval
+	ciwsMode.fallbackCachePhaseOffset = fallbackCachePhase * aiConfig.fallbackCacheInterval
 end
 
 
@@ -513,7 +528,50 @@ function canAiSeePoint(origin, point, targetBodyOrVehicle)
         return hitDist >= dist - 1.0
 end
 
-function acquireAiTarget(origin)
+function appendUniqueTargets(targetList, seenTargets, targets)
+	if targets == nil then
+		return
+	end
+
+	for i = 1, #targets do
+		local target = targets[i]
+		if target ~= 0 and IsHandleValid(target) and not seenTargets[target] then
+			seenTargets[target] = true
+			targetList[#targetList + 1] = target
+		end
+	end
+end
+
+function refreshPrimaryAiTargetCache()
+	local primaryTargets = {}
+	local seenTargets = {}
+	appendUniqueTargets(primaryTargets, seenTargets, FindVehicles(aiConfig.targetTag, true))
+	appendUniqueTargets(primaryTargets, seenTargets, FindBodies(aiConfig.targetTag, true))
+	aiTargetSearchCache.primaryTargets = primaryTargets
+end
+
+function refreshFallbackAiTargetCache()
+	local fallbackTargets = {}
+	local seenTargets = {}
+	local fallbackTags = {"drone", "phalanx_drone", "plane", "helicopter"}
+	for t = 1, #fallbackTags do
+		appendUniqueTargets(fallbackTargets, seenTargets, FindVehicles(fallbackTags[t], true))
+	end
+	aiTargetSearchCache.fallbackTargets = fallbackTargets
+end
+
+function getTargetApproxPoint(target)
+	if GetEntityType(target) == "vehicle" then
+		local body = GetVehicleBody(target)
+		if body ~= 0 then
+			return GetBodyTransform(body).pos
+		end
+		return GetVehicleTransform(target).pos
+	end
+	return GetBodyTransform(target).pos
+end
+
+function acquireAiTarget(origin, allowFallbackScan)
         local bestBody = 0
         local bestPoint = Vec()
         local bestScore = aiConfig.maxRange + 1.0
@@ -525,6 +583,9 @@ function acquireAiTarget(origin)
                         if target ~= baseBody and target ~= turretBody and target ~= gunBody then
                                 local isValid = isAiTargetValid(target)
                                 if isValid then
+					local approxPoint = getTargetApproxPoint(target)
+					local approxDist = VecLength(VecSub(approxPoint, origin))
+					if approxPoint[2] >= origin[2] - 1.0 and approxDist <= aiConfig.maxRange + 25.0 then
                                         local point = getAiTargetPoint(target, origin)
                                         local dist = VecLength(VecSub(point, origin))
 						if point[2] < origin[2] - 1.0 then dist = aiConfig.maxRange + 10.0 end
@@ -537,29 +598,21 @@ function acquireAiTarget(origin)
                                                         bestPoint = point
                                                 end
                                         end
+					end
                                 end
                         end
                 end
-        end
+	end
 
-        local scanTags = {'drone', 'phalanx_drone', 'plane', 'helicopter', 'phalanx_ai_target'}
         local validTargets = {}
-        for t = 1, #scanTags do
-                local tagVehicles = FindVehicles(scanTags[t], true)
-                if tagVehicles ~= nil then
-                        for i = 1, #tagVehicles do
-                                validTargets[#validTargets + 1] = tagVehicles[i]
-                        end
-                end
-        end
+        local seenTargets = {}
+	appendUniqueTargets(validTargets, seenTargets, aiTargetSearchCache.primaryTargets)
+
+	if allowFallbackScan then
+		appendUniqueTargets(validTargets, seenTargets, aiTargetSearchCache.fallbackTargets)
+	end
+
         checkTargets(validTargets)
-        
-        local bodies = FindBodies(aiConfig.targetTag, true)
-        if bodies ~= nil then
-                for i=1, #bodies do
-                        validTargets[#validTargets+1] = bodies[i]
-                end
-        end
 
         return bestBody, bestPoint
 end
@@ -570,15 +623,30 @@ function updateAiTracking(dt, trackingEnabled)
 		ciwsMode.targetBody = 0
 		ciwsMode.targetPoint = Vec()
 		ciwsMode.scanTimer = ciwsMode.scanPhaseOffset
+		ciwsMode.fallbackScanTimer = ciwsMode.fallbackScanPhaseOffset
+		ciwsMode.primaryCacheTimer = ciwsMode.primaryCachePhaseOffset
+		ciwsMode.fallbackCacheTimer = ciwsMode.fallbackCachePhaseOffset
 		ciwsMode.fireTimer = 0.0
 		ciwsMode.trackUpdateTimer = ciwsMode.trackPhaseOffset
 		ciwsMode.lastValidTarget = false
 		ciwsMode.hasLos = nil
+		aiTargetSearchCache.primaryTargets = {}
+		aiTargetSearchCache.fallbackTargets = {}
 		return false
 	end
 
 	local muzzlePos, _ = getMuzzlePosAndDir()
 	local hasTarget = false
+	ciwsMode.primaryCacheTimer = ciwsMode.primaryCacheTimer - dt
+	ciwsMode.fallbackCacheTimer = ciwsMode.fallbackCacheTimer - dt
+	if ciwsMode.primaryCacheTimer <= 0.0 then
+		refreshPrimaryAiTargetCache()
+		ciwsMode.primaryCacheTimer = aiConfig.primaryCacheInterval
+	end
+	if ciwsMode.fallbackCacheTimer <= 0.0 then
+		refreshFallbackAiTargetCache()
+		ciwsMode.fallbackCacheTimer = aiConfig.fallbackCacheInterval
+	end
 
 	if isAiTargetValid(ciwsMode.targetBody) then
 		ciwsMode.trackUpdateTimer = (ciwsMode.trackUpdateTimer or 0.0) - dt
@@ -604,10 +672,16 @@ function updateAiTracking(dt, trackingEnabled)
 			hasTarget = ciwsMode.lastValidTarget
 		end
 	end
+
 	ciwsMode.scanTimer = ciwsMode.scanTimer - dt
+	ciwsMode.fallbackScanTimer = ciwsMode.fallbackScanTimer - dt
 	if ciwsMode.scanTimer <= 0.0 then
-		ciwsMode.scanTimer = aiConfig.scanInterval
-		local targetBody, targetPoint = acquireAiTarget(muzzlePos)
+		local allowFallbackScan = ciwsMode.fallbackScanTimer <= 0.0
+		ciwsMode.scanTimer = hasTarget and aiConfig.trackedRescanInterval or aiConfig.scanInterval
+		if allowFallbackScan then
+			ciwsMode.fallbackScanTimer = aiConfig.fallbackScanInterval
+		end
+		local targetBody, targetPoint = acquireAiTarget(muzzlePos, allowFallbackScan)
 		if targetBody ~= 0 then
 			ciwsMode.targetBody = targetBody
 			ciwsMode.targetPoint = targetPoint
@@ -628,7 +702,7 @@ function updateAiTracking(dt, trackingEnabled)
 	return true
 end
 
-function server.init()
+function ciwsCommonServerInit()
 	DebugWatch("CIWS server.init started")
 	vehicle = findMountedVehicle()
 	DebugWatch("CIWS server findMountedVehicle returned: " .. tostring(vehicle))
@@ -793,7 +867,7 @@ function serverTickFire(dt, spin, statuses, ignoreHeat, ignoreDamagePenalty, aiT
 	end
 end
 
-function server.tick(dt)
+function ciwsCommonServerTick(dt)
 	tickProjectiles(dt)
 
 	if vehicle == 0 or baseBody == 0 or turretBody == 0 or gunBody == 0 then
@@ -824,13 +898,15 @@ function server.tick(dt)
 	local yawError, pitchError = serverUpdateAimMotors(ignoreDamagePenalty, statuses)
 	serverTickFire(dt, spin, statuses, ignoreHeat, ignoreDamagePenalty, aiTrackingActive, yawError, pitchError)
 
-	SetFloat("vehicle."..vehicle..".barrelHeat", barrelHeat)
-	SetBool("vehicle."..vehicle..".isOverheated", isOverheated)
+	if ciwsShouldSyncHeatState() then
+		SetFloat("vehicle."..vehicle..".barrelHeat", barrelHeat)
+		SetBool("vehicle."..vehicle..".isOverheated", isOverheated)
+	end
 
 	animateBarrelSpin()
 end
 
-function client.init()
+function ciwsCommonClientInit()
 	DebugWatch("CIWS client.init started")
 	vehicle = findMountedVehicle()
 	baseBody = FindBody("base")
@@ -853,6 +929,22 @@ function client.init()
 	ciwsInitializeClientModeState()
 end
 
+function ciwsCommonRemoteClientInit()
+	DebugWatch("CIWS remote client.init started")
+	vehicle = findMountedVehicle()
+	baseBody = FindBody("base")
+	turretBody = FindBody("turret")
+	gunBody = FindBody("gun")
+	yawJoint = FindJoint("ciws_yaw")
+	pitchJoint = FindJoint("ciws_pitch")
+	audioState = phalanxWeaponAudio.loadState()
+	turretRotLoop = LoadLoop("MOD/snd/turret-rot.ogg")
+	readCiwsMode()
+	remoteAudioState.turretForward = nil
+	remoteAudioState.initialized = false
+	DebugWatch("CIWS remote client.init completed. AI Mode: " .. tostring(ciwsMode.isAi))
+end
+
 function client.renderProjectileSmoke(px, py, pz, vx, vy, vz)
 	local pos = Vec(px, py, pz)
 	local vel = Vec(vx, vy, vz)
@@ -870,7 +962,7 @@ function client.playGunShot(px, py, pz)
 	end
 end
 
-function client.draw(dt)
+function ciwsCommonClientDraw(dt)
 	if not ciwsShouldRenderHud() then
 		return
 	end
@@ -1167,7 +1259,35 @@ function clientTickFiringEffects(dt, statuses, firing)
 	end
 end
 
-function client.tick(dt)
+function ciwsCommonRemoteClientTick(dt)
+	if turretBody == 0 or not IsHandleValid(turretBody) then
+		return
+	end
+
+	local turretStatus = getModuleStatus(turretBody, yawJoint, "ciws_turret", 10)
+	local turretTransform = GetBodyTransform(turretBody)
+	local currentForward = TransformToParentVec(turretTransform, Vec(0, 0, 1))
+	currentForward = VecNormalize(currentForward)
+
+	if not remoteAudioState.initialized then
+		remoteAudioState.turretForward = currentForward
+		remoteAudioState.initialized = true
+		return
+	end
+
+	local previousForward = remoteAudioState.turretForward or currentForward
+	local dot = clamp(VecDot(previousForward, currentForward), -1.0, 1.0)
+	local deltaAngle = math.deg(math.acos(dot))
+	local angularSpeed = deltaAngle / math.max(dt, 0.001)
+
+	if turretStatus ~= "Destroyed" and turretRotLoop ~= 0 and angularSpeed > 2.0 then
+		PlayLoop(turretRotLoop, turretTransform.pos, turretRotVolume)
+	end
+
+	remoteAudioState.turretForward = currentForward
+end
+
+function ciwsCommonClientTick(dt)
 	local currentVehicle = GetPlayerVehicle()
 	local currentVehicleBody = 0
 	if currentVehicle ~= 0 then

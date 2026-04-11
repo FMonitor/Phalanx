@@ -36,6 +36,10 @@ function ciwsShouldUseTrackedTarget()
 	return autoFireEnabled
 end
 
+function ciwsResolveManualShootDir(muzzlePos, gunDir)
+	return VecNormalize(gunDir)
+end
+
 function ciwsIsTrackingEnabled(radarStatus)
 	return radarStatus ~= "Destroyed" and autoFireEnabled
 end
@@ -63,6 +67,30 @@ end
 
 function ciwsShouldRenderHud()
 	return true
+end
+
+function ciwsShouldSyncHeatState()
+	return true
+end
+
+function server.init()
+	ciwsCommonServerInit()
+end
+
+function server.tick(dt)
+	ciwsCommonServerTick(dt)
+end
+
+function client.init()
+	ciwsCommonClientInit()
+end
+
+function client.draw(dt)
+	ciwsCommonClientDraw(dt)
+end
+
+function client.tick(dt)
+	ciwsCommonClientTick(dt)
 end
 
 #include "ciws_emplacement_core.lua"
