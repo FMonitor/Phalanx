@@ -8,12 +8,15 @@
 			<voxbox name="raid_button" tags="raid_button interact=Spawn test drone" pos="-6.4 20.95 29.3" size="3.2 0.8 3.2" material="plastic" color="0.8 0.18 0.12"/>
 			<light name="raid_button_light" tags="raid_button_light" pos="-4.8 21.9 30.9" rot="90.0 0.0 0.0" type="area" color="1.0 0.2 0.12" scale="2.5" size="1.2 1.2" unshadowed="0.35" glare="0.3"/>
 		</body>
-		<location tags="phalanx_drone_spawn" pos="-284.60001 149.80002 -145.8"/>
-		<location tags="phalanx_drone_spawn" pos="-266.49997 145.80002 130.8"/>
-		<location tags="phalanx_drone_spawn" pos="-262.5 151.80002 52.0"/>
-		<location tags="phalanx_drone_spawn" pos="-312.39999 153.80002 -18.3"/>
+		<location tags="phalanx_drone_spawn" pos="-284.60001 149.80002 -205.10001"/>
+		<location tags="phalanx_drone_spawn" pos="-266.49997 145.80002 279.20001"/>
+		<location tags="phalanx_drone_spawn" pos="-262.5 151.80002 131.89999"/>
+		<location tags="phalanx_drone_spawn" pos="-312.39999 153.80002 17.0"/>
 		<location tags="phalanx_drone_spawn" pos="-365.89999 147.80002 -102.6"/>
-		<location tags="phalanx_drone_spawn" pos="-324.19998 149.80002 102.0"/>
+		<location tags="phalanx_drone_spawn" pos="-324.19998 149.80002 195.10001"/>
+		<location tags="phalanx_drone_spawn" pos="-309.59998 145.80002 324.79999"/>
+		<location tags="phalanx_drone_spawn" pos="-223.19997 169.70001 259.5"/>
+		<location tags="phalanx_drone_spawn" pos="-223.19997 169.70001 305.10001"/>
 	</script>
 	<group name="engine" pos="54.4 -12.7 0.1">
 		<vox tags="unbreakable" pos="-64.0 12.7 179.09999" file="MOD/map/00.vox"/>

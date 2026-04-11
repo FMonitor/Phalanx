@@ -2,6 +2,10 @@
 #version 2
 
 droneBody = 0
+droneBeacon = 0
+beaconBlinkTimer = 0.0
+beaconBlinkSpeed = 0.0
+beaconBlinkDuration = 0.45
 droneState = {
 	spawnTime = 0.0,
 	baseForward = Vec(0, 0, -1),
@@ -93,6 +97,10 @@ function server.init()
     droneVehicle = FindVehicle('drone')
     if droneVehicle == 0 then droneVehicle = FindVehicle() end
     droneBody = FindBody('drone_body')
+    droneBeacon = FindShape('drone_beacon', true)
+    if droneBeacon == 0 then
+        droneBeacon = FindShape('drone_beacon')
+    end
     if droneBody == 0 and droneVehicle ~= 0 then droneBody = GetVehicleBody(droneVehicle) end
     DebugPrint('Drone Init: Veh='..tostring(droneVehicle)..' Body='..tostring(droneBody))
     droneState.spawnTime = GetTime()
@@ -104,6 +112,53 @@ function server.init()
 		droneState.baseForward[2] = droneState.baseForward[2] * 0.15
 		droneState.baseForward = VecNormalize(droneState.baseForward)
 		droneState.cruiseHeight = t.pos[2]
+	end
+end
+
+function client.init()
+	droneBody = FindBody('drone_body')
+	if droneBody == 0 then
+		local clientVehicle = FindVehicle('drone')
+		if clientVehicle ~= 0 then
+			droneBody = GetVehicleBody(clientVehicle)
+		end
+	end
+
+	droneBeacon = FindShape('drone_beacon', true)
+	if droneBeacon == 0 then
+		droneBeacon = FindShape('drone_beacon')
+	end
+
+	beaconBlinkSpeed = math.random() * 2.0 + 1.5
+	beaconBlinkTimer = 0.0
+
+	if droneBeacon ~= 0 then
+		SetShapeEmissiveScale(droneBeacon, 0.0)
+	end
+end
+
+function client.render(dt)
+	if droneBeacon == 0 or not IsHandleValid(droneBeacon) then
+		return
+	end
+
+	if droneBody ~= 0 and IsHandleValid(droneBody) and IsBodyBroken(droneBody) then
+		SetShapeEmissiveScale(droneBeacon, 0.0)
+		return
+	end
+
+	beaconBlinkTimer = beaconBlinkTimer + (dt * beaconBlinkSpeed)
+	local t = math.fmod(beaconBlinkTimer, 1.0)
+	if t < beaconBlinkDuration then
+		SetShapeEmissiveScale(droneBeacon, 20.0)
+
+		if droneBody ~= 0 and IsHandleValid(droneBody) then
+			local bodyTransform = GetBodyTransform(droneBody)
+			local lightPos = VecAdd(bodyTransform.pos, Vec(0.0, 0.55, 0.0))
+			PointLight(lightPos, 0.2, 0.9, 1.0, 5.0)
+		end
+	else
+		SetShapeEmissiveScale(droneBeacon, 1.5)
 	end
 end
 

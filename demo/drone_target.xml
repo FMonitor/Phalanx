@@ -4,6 +4,7 @@
 			<vehicle name="drone" tags="drone phalanx_drone phalanx_ai_target" pos="0 0 0">
 				<body name="drone_body" tags="drone_body phalanx_drone phalanx_ai_target" dynamic="true">
 					<vox file="MOD/map/drone.vox"/>
+					<voxbox name="drone_beacon" tags="drone_beacon blink" pos="-0.16 0.36 -0.16" size="0.32 0.32 0.32" material="glass" color="0.2 0.9 1.0"/>
 				</body>
 			</vehicle>
 		</script>
