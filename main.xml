@@ -51,8 +51,6 @@
 						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
 						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
 							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
 							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
 								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
 							</vox>
@@ -61,9 +59,6 @@
 						</body>
 					</body>
 				</body>
-				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-				</rig>
 			</vehicle>
 		</script>
 		<script pos="-70.2 -0.1 32.49999" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
@@ -75,8 +70,6 @@
 						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
 						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
 							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
 							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
 								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
 							</vox>
@@ -85,9 +78,6 @@
 						</body>
 					</body>
 				</body>
-				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-				</rig>
 			</vehicle>
 		</script>
 		<script pos="60.8 -0.1 182.59999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
@@ -99,8 +89,6 @@
 						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
 						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
 							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
 							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
 								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
 							</vox>
@@ -109,9 +97,6 @@
 						</body>
 					</body>
 				</body>
-				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-				</rig>
 			</vehicle>
 		</script>
 		<script pos="41.2 -0.1 172.89999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
@@ -123,8 +108,6 @@
 						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
 						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
 							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
 							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
 								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
 							</vox>
@@ -133,9 +116,6 @@
 						</body>
 					</body>
 				</body>
-				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-				</rig>
 			</vehicle>
 		</script>
 		<script pos="-34.4 -0.1 -162.10001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
@@ -147,8 +127,6 @@
 						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
 						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
 							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
 							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
 								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
 							</vox>
@@ -157,9 +135,6 @@
 						</body>
 					</body>
 				</body>
-				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-				</rig>
 			</vehicle>
 		</script>
 		<script pos="-20.90001 -0.1 -178.90001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_ai_emplacement.lua">
@@ -171,8 +146,6 @@
 						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
 						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
 							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
 							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
 								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
 							</vox>
@@ -181,9 +154,6 @@
 						</body>
 					</body>
 				</body>
-				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-				</rig>
 			</vehicle>
 		</script>
 	</group>

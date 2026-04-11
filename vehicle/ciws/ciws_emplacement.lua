@@ -61,4 +61,8 @@ function ciwsHandleClientRadarDestroyed(radarStatus)
 	end
 end
 
+function ciwsShouldRenderHud()
+	return true
+end
+
 #include "ciws_emplacement_core.lua"

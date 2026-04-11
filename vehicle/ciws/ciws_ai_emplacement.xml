@@ -8,8 +8,6 @@
 						<vox tags="ciws_turret" pos="0.0 -2.0 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="turret"/>
 						<body name="gun" tags="gun" pos="0.0 0.0 0.0" dynamic="true">
 							<joint name="pitch" tags="ciws_pitch" pos="0.25 0.1 0.7" rot="0.0 0.0 90.0" type="hinge" size="0.2" rotstrength="1" rotspring="0" collide="false" limits="-15 85"/>
-							<location name="camera" tags="camera" pos="0.1 0.8 -1.2"/>
-							<location name="player" tags="player" pos="0.8 0.7 -0.05" rot="0.0 180.0 0.0"/>
 							<vox tags="ciws_mount" pos="0.1 -1.5 0.0" density="0.2" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="gun">
 								<location name="vital" tags="vital" pos="-0.2 1.0 0.0"/>
 							</vox>
@@ -18,9 +16,6 @@
 						</body>
 					</body>
 				</body>
-				<rig name="driver" tags="driver sort=0" pos="0.0 1.4 0.0" rot="0.0 180.0 0.0">
-					<location name="seat" tags="seat" pos="0.0 1.1 0.1"/>
-				</rig>
 			</vehicle>
 		</script>
 </prefab>

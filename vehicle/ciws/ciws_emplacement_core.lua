@@ -73,7 +73,7 @@ jointConfig = {
 }
 
 weaponOffsets = {
-	muzzle = Vec(3, 0, 0),    -- 枪口开火生成点（即火光和子弹起�?
+	muzzle = Vec(4, 0, 0),    -- 枪口开火生成点（即火光和子弹起�?
 	spinPivot = Vec(0.0, 0.35, 0.35) -- 枪管旋转轴圆�?
 }
 
@@ -92,7 +92,10 @@ ciwsMode = {
 	targetBody = 0,
 	targetPoint = Vec(),
 	scanTimer = 0.0,
+	scanPhaseOffset = 0.0,
 	fireTimer = 0.0,
+	trackUpdateTimer = 0.0,
+	trackPhaseOffset = 0.0,
 }
 
 aiConfig = {
@@ -100,6 +103,7 @@ aiConfig = {
 	targetTag = "phalanx_ai_target",
 	maxRange = 360.0,
 	scanInterval = 1,
+	trackInterval = 0.3,
 	leadFactor = 1.2,
 	fireYawTolerance = 3.0,
 	firePitchTolerance = 3.0,
@@ -373,15 +377,47 @@ function readCiwsMode()
 	end
 
 	ciwsConfigureMode(tagCarrier)
+	configureAiUpdateSchedule()
 
 	ciwsMode.targetBody = 0
 	ciwsMode.targetPoint = Vec()
-	ciwsMode.scanTimer = 0.0
+	ciwsMode.scanTimer = ciwsMode.scanPhaseOffset
 	ciwsMode.fireTimer = 0.0
+	ciwsMode.trackUpdateTimer = ciwsMode.trackPhaseOffset
 	
 	if ciwsMode.isAi then
 		DebugWatch("CIWS AI Mode initialized for vehicle/body: " .. tostring(tagCarrier))
 	end
+end
+
+function getCiwsScheduleSeed()
+	local seedPos = Vec()
+	if baseBody ~= 0 and IsHandleValid(baseBody) then
+		seedPos = GetBodyTransform(baseBody).pos
+	elseif vehicle ~= 0 and IsHandleValid(vehicle) then
+		seedPos = GetVehicleTransform(vehicle).pos
+	end
+
+	return seedPos[1] * 12.9898 + seedPos[2] * 78.233 + seedPos[3] * 37.719 + vehicle * 0.173
+end
+
+function getCiwsPhaseValue(seed)
+	local phase = math.sin(seed) * 43758.5453
+	return phase - math.floor(phase)
+end
+
+function configureAiUpdateSchedule()
+	if not ciwsMode.isAi then
+		ciwsMode.scanPhaseOffset = 0.0
+		ciwsMode.trackPhaseOffset = 0.0
+		return
+	end
+
+	local seed = getCiwsScheduleSeed()
+	local scanPhase = getCiwsPhaseValue(seed)
+	local trackPhase = getCiwsPhaseValue(seed + 19.417)
+	ciwsMode.scanPhaseOffset = scanPhase * aiConfig.scanInterval
+	ciwsMode.trackPhaseOffset = trackPhase * aiConfig.trackInterval
 end
 
 
@@ -533,8 +569,11 @@ function updateAiTracking(dt, trackingEnabled)
 	if not trackingEnabled then
 		ciwsMode.targetBody = 0
 		ciwsMode.targetPoint = Vec()
-		ciwsMode.scanTimer = 0.0
+		ciwsMode.scanTimer = ciwsMode.scanPhaseOffset
 		ciwsMode.fireTimer = 0.0
+		ciwsMode.trackUpdateTimer = ciwsMode.trackPhaseOffset
+		ciwsMode.lastValidTarget = false
+		ciwsMode.hasLos = nil
 		return false
 	end
 
@@ -560,8 +599,7 @@ function updateAiTracking(dt, trackingEnabled)
 				ciwsMode.hasLos = nil
 				ciwsMode.lastValidTarget = false
 			end
-			-- Update interval: 10Hz to save performance since servo smoothing handles the rest
-			ciwsMode.trackUpdateTimer = 0.3
+			ciwsMode.trackUpdateTimer = aiConfig.trackInterval
 		else
 			hasTarget = ciwsMode.lastValidTarget
 		end
@@ -833,6 +871,10 @@ function client.playGunShot(px, py, pz)
 end
 
 function client.draw(dt)
+	if not ciwsShouldRenderHud() then
+		return
+	end
+
 	if GetPlayerVehicle() ~= vehicle or GetString("level.state") ~= "" then
 		return
 	end
