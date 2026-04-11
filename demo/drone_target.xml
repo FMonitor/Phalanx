@@ -1,8 +1,8 @@
 <prefab version="2.0.0">
 	<group>
 		<script file="MOD/demo/drone_target.lua">
-			<vehicle name="drone" tags="phalanx_drone phalanx_ai_target" pos="0 0 0">
-				<body name="drone_body" dynamic="true">
+			<vehicle name="drone" tags="drone phalanx_drone phalanx_ai_target" pos="0 0 0">
+				<body name="drone_body" tags="drone_body phalanx_drone phalanx_ai_target" dynamic="true">
 					<vox file="MOD/map/drone.vox"/>
 				</body>
 			</vehicle>

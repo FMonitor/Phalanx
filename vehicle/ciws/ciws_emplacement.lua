@@ -720,7 +720,7 @@ function server.tick(dt)
 	pitchMotorVelDeg = desiredPitchVelDeg
 	SetJointMotor(pitchJoint, math.rad(pitchMotorVelDeg), desiredPitchStrength)
 
-	local canFire = gunStatus ~= "Destroyed" and mountStatus ~= "Destroyed" and (ignoreHeat or not isOverheated)
+	local canFire = gunStatus ~= "Destroyed" and (ignoreHeat or not isOverheated)
 	local requestedFire = serverFireInput or autoFireEnabled
 	if aiTrackingActive then
 		local aligned = math.abs(yawError) <= aiConfig.fireYawTolerance and math.abs(pitchError) <= aiConfig.firePitchTolerance

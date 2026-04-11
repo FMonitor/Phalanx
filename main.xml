@@ -1,19 +1,19 @@
 <scene version="2.0.1" shadowVolume="260 80 400">
-	<environment template="night" skybox="night.dds.tde" skyboxtint="1.0 1.0 1.0" skyboxbrightness="0.005" skyboxrot="45" ambient="0.1" ambientexponent="1.0" fogType="classic" fogColor="0.01 0.01 0.01" fogParams="100 200 1 8" sunColorTint="1.0 1.0 1.0"/>
+	<environment template="night" skybox="night.dds.tde" skyboxtint="1.0 1.0 1.0" skyboxbrightness="0.005" skyboxrot="45" ambient="0.1" ambientexponent="1.0" fogType="classic" fogColor="0.01 0.01 0.01" fogParams="100 200 0 8" sunColorTint="1.0 1.0 1.0"/>
 	<script file="main.lua"/>
 	<script file="sandbox.lua"/>
 	<spawnpoint pos="-46.4 23.2 34.4" rot="0 180 0"/>
-	<script file="demo/ciws_demo.lua">
+	<script pos="0 0 0" file="MOD/demo/ciws_demo.lua">
 		<body pos="-47.4 2.0 19.5">
 			<voxbox name="raid_button" tags="raid_button interact=Spawn test drone" pos="-6.4 20.95 29.3" size="3.2 0.8 3.2" material="plastic" color="0.8 0.18 0.12"/>
-			<light name="raid_button_light" tags="raid_button_light" pos="-4.8 21.9 30.9" rot="90.0 0.0 0.0" type="area" color="1.0 0.2 0.12" size="1.2 1.2" scale="2.5" unshadowed="0.35" glare="0.3"/>
+			<light name="raid_button_light" tags="raid_button_light" pos="-4.8 21.9 30.9" rot="90.0 0.0 0.0" type="area" color="1.0 0.2 0.12" scale="2.5" size="1.2 1.2" unshadowed="0.35" glare="0.3"/>
 		</body>
-		<location tags="phalanx_drone_spawn" pos="-90 24 -70"/>
-		<location tags="phalanx_drone_spawn" pos="-104 20 -10"/>
-		<location tags="phalanx_drone_spawn" pos="-84 26 52"/>
-		<location tags="phalanx_drone_spawn" pos="-143.2 28.0 -74.0"/>
-		<location tags="phalanx_drone_spawn" pos="-127.2 22.0 -6.0"/>
-		<location tags="phalanx_drone_spawn" pos="-147.2 24.0 68.0"/>
+		<location tags="phalanx_drone_spawn" pos="-284.60001 149.80002 -145.8"/>
+		<location tags="phalanx_drone_spawn" pos="-266.49997 145.80002 130.8"/>
+		<location tags="phalanx_drone_spawn" pos="-262.5 151.80002 52.0"/>
+		<location tags="phalanx_drone_spawn" pos="-312.39999 153.80002 -18.3"/>
+		<location tags="phalanx_drone_spawn" pos="-365.89999 147.80002 -102.6"/>
+		<location tags="phalanx_drone_spawn" pos="-324.19998 149.80002 102.0"/>
 	</script>
 	<group name="engine" pos="54.4 -12.7 0.1">
 		<vox tags="unbreakable" pos="-64.0 12.7 179.09999" file="MOD/map/00.vox"/>
@@ -39,7 +39,7 @@
 		<vertex pos="-214.5 232.60001"/>
 	</boundary>
 	<group name="phalanx" pos="18.7 21.2 28.8">
-		<script pos="-63.8 -0.1 9.2" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+		<script pos="-74.99998 -0.1 11.7" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
 			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
@@ -63,7 +63,7 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="-59.0 -0.1 30.0" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+		<script pos="-70.2 -0.1 32.49999" rot="0 -167 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
 			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
@@ -87,7 +87,7 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="65.5 -0.1 172.29999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+		<script pos="60.8 -0.1 182.59999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
 			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
@@ -111,7 +111,7 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="45.9 -0.1 162.59999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+		<script pos="41.2 -0.1 172.89999" rot="0 -117 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
 			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
@@ -135,7 +135,7 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="-26.0 -0.1 -155.90001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+		<script pos="-34.4 -0.1 -162.10001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
 			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
@@ -159,7 +159,7 @@
 				</rig>
 			</vehicle>
 		</script>
-		<script pos="-12.50001 -0.1 -172.70001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
+		<script pos="-20.90001 -0.1 -178.90001" rot="0 140 0" file="MOD/vehicle/ciws/ciws_emplacement.lua">
 			<vehicle tags="vehicle turret ciws_emplacement ciws_ai ciws_ai_noheat ciws_ai_ignore_damage" pos="0.0 0.0 0.0" sound="military 0" spring="0.7" topspeed="0" acceleration="0" strength="4">
 				<body name="base" tags="body base" pos="0.0 1.0 0.0" dynamic="true">
 					<vox pos="0.0 -0.9 0.0" strength="25" file="MOD/vehicle/ciws/ciws.vox" object="base"/>
@@ -189,3 +189,4 @@
 		<light pos="170.8 284.20001 1.7" rot="90.0 0.0 0.0" type="capsule" color="0.88 0.93 0.97" scale="50" size="400 5" unshadowed="0.0001" glare="0"/>
 	</script>
 </scene>
+

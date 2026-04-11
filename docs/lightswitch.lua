@@ -1,4 +1,4 @@
-function init()	
+function server.init()	
 	--Find handles to the light switch and and lamp
 	switch = FindShape("switch")
 	lamp = FindLight("lamp")
@@ -14,7 +14,7 @@ function init()
 end
 
 
-function tick()
+function server.tick()
 	--Check if player interacts with light switch and presses interact button
 	if GetPlayerInteractShape() == switch and InputPressed("interact") then
 
